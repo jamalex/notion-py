@@ -42,6 +42,7 @@ def property_map(name, python_to_api=lambda x: x, api_to_python=lambda x: x, mar
         return python_to_api(x)
 
     def a2p(x):
+        x = x or [[""]]
         if markdown:
             x = notion_to_markdown(x)
         return api_to_python(x)

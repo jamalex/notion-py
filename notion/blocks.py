@@ -19,6 +19,20 @@ class Block(object):
         self.client = client
         self.block_id = extract_id(block_id)
 
+    @property
+    def children(self):
+        if not hasattr(self, "_children"):
+            children_ids = self.get("content", [])
+            self.client.bulk_update_block_cache(children_ids)
+            self._children = tuple([self.client.get_block(id) for id in children_ids])
+        return self._children
+
+    def __str__(self):
+        return "type={}".format(self.type)
+
+    def __repr__(self):
+        return "<{} ({})>".format(self.__class__.__name__, self)
+
     def refresh(self):
         """
         Update the cached data for this block from the server (data for other blocks may be updated as a side effect).
@@ -30,7 +44,7 @@ class Block(object):
             self.refresh()
         return self.client.block_cache[self.block_id]
 
-    def get(self, path=[], refresh=False):
+    def get(self, path=[], default=None, refresh=False):
         """
         Retrieve cached data for this block. The `path` is a list (or dot-delimited string) the specifies the field
         to retrieve the value for. If no path is supplied, return the entire cached data structure for this block.
@@ -45,7 +59,7 @@ class Block(object):
             for key in path:
                 value = value[key]
         except KeyError:
-            value = None
+            value = default
         return value
 
     def set(self, path, value, refresh=True):
@@ -63,6 +77,18 @@ class BasicBlock(Block):
     title = property_map("title")
     color = field_map("format.block_color")
 
+    def convert_to_type(self, new_type):
+        """
+        Convert this block into another type of BasicBlock. Returns a new instance of the appropriate class.
+        """
+        assert new_type in BLOCK_TYPES and issubclass(BLOCK_TYPES[new_type], BasicBlock), \
+            "Target type must correspond to a subclass of BasicBlock"
+        self.type = new_type
+        return self.client.get_block(self.block_id)
+
+    def __str__(self):
+        return "title={}".format(repr(self.title))
+
 
 class TodoBlock(BasicBlock):
 
@@ -78,6 +104,9 @@ class CodeBlock(BasicBlock):
 class MediaBlock(Block):
 
     caption = property_map("caption")
+
+    def __str__(self):
+        return "caption={}".format(repr(self.caption))
 
 
 class ImageBlock(MediaBlock):
@@ -104,7 +133,6 @@ class BookmarkBlock(MediaBlock):
 
 
 BLOCK_TYPES = {
-    "": Block,
     "text": BasicBlock,
     "header": BasicBlock,
     "sub_header": BasicBlock,

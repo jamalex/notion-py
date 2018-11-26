@@ -3,7 +3,7 @@ from requests.cookies import cookiejar_from_dict
 from urllib.parse import urljoin
 
 from utils import extract_id
-from blocks import BLOCK_TYPES
+from blocks import Block, BLOCK_TYPES
 from settings import API_BASE_URL
 from operations import operation_update_last_edited
 
@@ -27,9 +27,10 @@ class NotionClient(object):
         Retrieve a subclass of Block that maps to the block/page identified by the URL or ID passed in.
         """
         block_id = extract_id(url_or_id)
-        self.update_block_cache(block_id)
+        if block_id not in self.block_cache:
+            self.update_block_cache(block_id)
         block = self.block_cache[block_id]["value"]
-        block_class = BLOCK_TYPES.get(block.get("type", ""))
+        block_class = BLOCK_TYPES.get(block.get("type", ""), Block)
         return block_class(self, block_id)
 
     def post(self, endpoint, data):
@@ -45,7 +46,7 @@ class NotionClient(object):
         singleton = isinstance(user_ids, str)
         if singleton:
             user_ids = [user_ids]
-        requestlist = [{"table": "notion_user", "id": id} for id in user_ids]
+        requestlist = [{"table": "notion_user", "id": extract_id(id)} for id in user_ids]
         results = [result.get("value") for result in self.post("getRecordValues", {"requests": requestlist}).json()["results"]]
         return results[0] if singleton else results
 
@@ -72,3 +73,15 @@ class NotionClient(object):
         data = {"pageId": block_id, "limit": 1000, "cursor": {"stack": []}, "chunkNumber": 0, "verticalColumns": False}
         blocks = self.post("loadPageChunk", data).json()["recordMap"]["block"] 
         self.block_cache.update(blocks)
+
+    def bulk_update_block_cache(self, block_ids):
+        """
+        We maintain an internal cache of all block values; this command updates the state in bulk through the API for
+        the given list of block IDs.
+        """
+        if not block_ids:
+            return
+        requestlist = [{"table": "block", "id": extract_id(id)} for id in block_ids]
+        results = self.post("getRecordValues", {"requests": requestlist}).json()["results"]
+        for result in results:
+            self.block_cache[result["value"]["id"]] = result

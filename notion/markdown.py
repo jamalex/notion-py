@@ -138,7 +138,7 @@ def notion_to_markdown(notion):
 
         markdown += leading_whitespace
 
-        sorted_format = sorted(format, key=lambda x: FORMAT_PRECEDENCE.index(x[0]))
+        sorted_format = sorted(format, key=lambda x: FORMAT_PRECEDENCE.index(x[0]) if x[0] in FORMAT_PRECEDENCE else -1)
 
         for f in sorted_format:
             if f[0] in _NOTION_TO_MARKDOWN_MAPPER:
