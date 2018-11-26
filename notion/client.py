@@ -59,11 +59,14 @@ class NotionClient(object):
             updated_blocks = set([op["id"] for op in operations if op["table"] == "block"])
             operations += [operation_update_last_edited(self.user_id, block_id) for block_id in updated_blocks]
 
-        data = {
-            "operations": operations
-        }
-
-        return self.post("submitTransaction", data).json()
+        # if we're in a transaction, just add these operations to the list; otherwise, execute them right away
+        if hasattr(self, "_transaction_operations"):
+            self._transaction_operations += operations
+        else:
+            data = {
+                "operations": operations
+            }
+            return self.post("submitTransaction", data).json()
 
     def update_block_cache(self, block_id):
         """
@@ -85,3 +88,28 @@ class NotionClient(object):
         results = self.post("getRecordValues", {"requests": requestlist}).json()["results"]
         for result in results:
             self.block_cache[result["value"]["id"]] = result
+
+    def as_atomic_transaction(self):
+        """
+        Returns a context manager that buffers up all calls to `submit_transaction` and sends them as one big transaction
+        when the context manager exits.
+        """
+        return Transaction(client=self)
+
+
+class Transaction(object):
+
+    def __init__(self, client):
+        self.client = client
+
+    def __enter__(self):
+        assert not hasattr(self.client, "_transaction_operations"), "Client is already in a transaction."
+        self.client._transaction_operations = []
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        operations = self.client._transaction_operations
+        del self.client._transaction_operations
+        # only actually submit the transaction if there was no exception
+        if not exc_type:
+            self.client.submit_transaction(operations)
