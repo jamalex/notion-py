@@ -51,7 +51,7 @@ class NotionClient(object):
         return results[0] if singleton else results
 
     def submit_transaction(self, operations, update_last_edited=True):
-        
+
         if isinstance(operations, dict):
             operations = [operations]
 
@@ -60,7 +60,7 @@ class NotionClient(object):
             operations += [operation_update_last_edited(self.user_id, block_id) for block_id in updated_blocks]
 
         # if we're in a transaction, just add these operations to the list; otherwise, execute them right away
-        if hasattr(self, "_transaction_operations"):
+        if self.in_transaction():
             self._transaction_operations += operations
         else:
             data = {
@@ -73,17 +73,28 @@ class NotionClient(object):
         We maintain an internal cache of all block values; this command updates the state through the API for a specific
         block and for its parent/children whose data is returned alongside it.
         """
+        if self.in_transaction():
+            self._pages_to_refresh.append(block_id)
+            return
+
         data = {"pageId": block_id, "limit": 1000, "cursor": {"stack": []}, "chunkNumber": 0, "verticalColumns": False}
-        blocks = self.post("loadPageChunk", data).json()["recordMap"]["block"] 
+        blocks = self.post("loadPageChunk", data).json()["recordMap"]["block"]
         self.block_cache.update(blocks)
 
-    def bulk_update_block_cache(self, block_ids):
+    def bulk_update_block_cache(self, block_ids=None):
         """
         We maintain an internal cache of all block values; this command updates the state in bulk through the API for
-        the given list of block IDs.
+        the given list of block IDs. If no list is provided, we bulk update all blocks we know about.
         """
+        if block_ids is None:
+            block_ids = list(self.block_cache.keys())
         if not block_ids:
             return
+
+        if self.in_transaction():
+            self._blocks_to_refresh += block_ids
+            return
+
         requestlist = [{"table": "block", "id": extract_id(id)} for id in block_ids]
         results = self.post("getRecordValues", {"requests": requestlist}).json()["results"]
         for result in results:
@@ -96,6 +107,9 @@ class NotionClient(object):
         """
         return Transaction(client=self)
 
+    def in_transaction(self):
+        return hasattr(self, "_transaction_operations")
+
 
 class Transaction(object):
 
@@ -105,11 +119,23 @@ class Transaction(object):
     def __enter__(self):
         assert not hasattr(self.client, "_transaction_operations"), "Client is already in a transaction."
         self.client._transaction_operations = []
+        self.client._pages_to_refresh = []
+        self.client._blocks_to_refresh = []
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
+
         operations = self.client._transaction_operations
         del self.client._transaction_operations
+
         # only actually submit the transaction if there was no exception
         if not exc_type:
             self.client.submit_transaction(operations)
+
+        for block_id in self.client._pages_to_refresh:
+            self.client.update_block_cache(block_id=block_id)
+        del self.client._pages_to_refresh
+
+        self.client.bulk_update_block_cache(block_ids=self.client._blocks_to_refresh)
+        del self.client._blocks_to_refresh
+
