@@ -36,18 +36,19 @@ def property_map(name, python_to_api=lambda x: x, api_to_python=lambda x: x, mar
     this representation into commonmark-compatible markdown, and back again when saving.
     """
 
-    def p2a(x):
+    def py2api(x):
+        x = python_to_api(x)
         if markdown:
             x = markdown_to_notion(x)
-        return python_to_api(x)
+        return x
 
-    def a2p(x):
+    def api2py(x):
         x = x or [[""]]
         if markdown:
             x = notion_to_markdown(x)
         return api_to_python(x)
 
-    return field_map(["properties", name], python_to_api=p2a, api_to_python=a2p)
+    return field_map(["properties", name], python_to_api=py2api, api_to_python=api2py)
 
 def joint_map(*mappings):
     """
