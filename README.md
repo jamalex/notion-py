@@ -7,7 +7,7 @@ Warning: This is still experimental/incomplete, and has not yet been packaged. T
 
 Obtain the `token_v2` value by inspecting your browser cookies on a logged-in session on Notion.so.
 
-```
+```Python
 from notion.client import NotionClient
 
 client = NotionClient(token_v2="<token_v2>")
