@@ -1,6 +1,107 @@
-from utils import extract_id
+from utils import extract_id, now
 from maps import property_map, field_map, joint_map
 from operations import build_operation
+import random
+import uuid
+
+
+class Children(object):
+
+    def __init__(self, parent):
+        self._parent = parent
+        self._client = parent._client
+
+    def shuffle(self):
+        content = self._content_list()
+        random.shuffle(content)
+        self._parent.set("content", content)
+
+    def _content_list(self):
+        return self._parent.get("content") or []
+
+    def __repr__(self):
+        rep = "[\n"
+        for child in self:
+            rep += "  {},\n".format(repr(child))
+        rep += "]"
+        return rep
+
+    def __len__(self):
+        return len(self._content_list() or [])
+
+    def __getitem__(self, key):
+        result = self._content_list()[key]
+        if isinstance(result, list):
+            return [self._client.get_block(id) for id in result]
+        else:
+            return [self._client.get_block(result)]
+
+    def __delitem__(self, key):
+        self._client.get_block(self._content_list()[key]).remove()
+
+    def __iter__(self):
+        return iter(self._client.get_block(id) for id in self._content_list())
+
+    def __reversed__(self):
+        return reversed(self.__iter__())
+
+    def __contains__(self, item):
+        if isinstance(item, str):
+            item_id = extract_id(item)
+        elif isinstance(item, Block):
+            item_id = item.id
+        else:
+            return False
+        return item_id in self._content_list()
+
+    def add(self, block_type):
+        """
+        Create a new block, add it as the last child of this parent block, and return the corresponding Block instance.
+        `block_type` can be either a type string, or a Block subclass.
+        """
+
+        # determine the block type string from the Block class, if that's what was provided
+        if isinstance(block_type, type) and issubclass(block_type, Block) and hasattr(block_type, "_type"):
+            block_type = block_type._type
+        elif not isinstance(block_type, str):
+            raise Exception("block_type must be a string or a Block subclass with a _type attribute")
+
+        # make up a new UUID; apparently we get to choose our own!
+        block_id = str(uuid.uuid4())
+
+        with self._client.as_atomic_transaction():
+
+            # create the new block
+            self._client.submit_transaction(
+                build_operation(
+                    args={
+                        "id": block_id,
+                        "type": block_type,
+                        "version": 1,
+                        "alive": True,
+                        "created_by": self._client.user_id,
+                        "created_time": now(),
+                        "parent_id": self._parent.id,
+                        "parent_table": "block",
+                    },
+                    command="set",
+                    id=block_id,
+                    path=[],
+                )
+            )
+
+            # add the block to the content list of the parent
+            self._client.submit_transaction(
+                build_operation(
+                    id=self._parent.id,
+                    path=["content"],
+                    args={"id": block_id},
+                    command="listAfter",
+                )
+            )
+
+        return self._client.get_block(block_id)
+
 
 class Block(object):
     """
@@ -28,7 +129,7 @@ class Block(object):
         if not hasattr(self, "_children"):
             children_ids = self.get("content", [])
             self._client.bulk_update_block_cache(children_ids)
-            self._children = tuple([self._client.get_block(id) for id in children_ids])
+            self._children = Children(parent=self)
         return self._children
 
     @property
@@ -85,11 +186,35 @@ class Block(object):
         if refresh:
             self.refresh()
 
+    def remove(self):
+        """
+        Removes the node from its parent, and marks it as inactive. This corresponds to what happens in the
+        Notion UI when you delete a block. Note that it doesn't seem to *actually* delete it, just orphan it.
+        """
+
+        with self._client.as_atomic_transaction():
+            # Mark the block as inactive
+            self._client.submit_transaction(
+                build_operation(
+                    id=self.id,
+                    path=[],
+                    args={"alive": False},
+                    command="update",
+                )
+            )
+            # Remove the block's ID from the "content" list of its parent
+            self._client.submit_transaction(
+                build_operation(
+                    id=self.get("parent_id"),
+                    path=["content"],
+                    args={"id": self.id},
+                    command="listRemove",
+                )
+            )
+
     def move_to(self, target_block, position="last-child"):
         assert isinstance(target_block, Block), "target_block must be an instance of Block or one of its subclasses"
         assert position in ["first-child", "last-child", "before", "after"]
-
-        old_parent_id = self.get("parent_id")
 
         if "child" in position:
             new_parent_id = target_block.id
@@ -108,24 +233,10 @@ class Block(object):
             list_args[position] = target_block.id
 
         with self._client.as_atomic_transaction():
-            # Temporarily mark the block being moved as inactive
-            self._client.submit_transaction(
-                build_operation(
-                    id=self.id,
-                    path=[],
-                    args={"alive": False},
-                    command="update",
-                )
-            )
-            # Remove the block's ID from the "content" list of its current parent
-            self._client.submit_transaction(
-                build_operation(
-                    id=old_parent_id,
-                    path=["content"],
-                    args={"id": self.id},
-                    command="listRemove",
-                )
-            )
+
+            # First, remove the node, before we re-insert and re-activate it at the target location
+            self.remove()
+
             # Set the parent_id of the moving block to the new parent, and mark it as active again
             self._client.submit_transaction(
                 build_operation(
@@ -168,10 +279,14 @@ class BasicBlock(Block):
 
 class TodoBlock(BasicBlock):
 
+    _type = "to_do"
+
     checked = property_map("checked", python_to_api=lambda x: "Yes" if x else "No", api_to_python=lambda x: x == "Yes")
 
 
 class CodeBlock(BasicBlock):
+
+    _type = "code"
 
     language = property_map("language")
     wrap = field_map("format.code_wrap")
@@ -187,10 +302,14 @@ class MediaBlock(Block):
 
 class ImageBlock(MediaBlock):
 
+    _type = "image"
+
     width = field_map("format.block_width")
 
 
 class EmbedBlock(MediaBlock):
+
+    _type = "embed"
 
     source = joint_map(field_map("format.display_source"), property_map("source"))
     height = field_map("format.block_height")
@@ -201,6 +320,8 @@ class EmbedBlock(MediaBlock):
 
 class BookmarkBlock(MediaBlock):
 
+    _type = "bookmark"
+
     bookmark_cover = field_map("format.bookmark_cover")
     bookmark_icon = field_map("format.bookmark_icon")
     description = property_map("description")
@@ -208,18 +329,52 @@ class BookmarkBlock(MediaBlock):
     title = property_map("title")
 
 
-BLOCK_TYPES = {
-    "text": BasicBlock,
-    "header": BasicBlock,
-    "sub_header": BasicBlock,
-    "page": BasicBlock,
-    "to_do": TodoBlock,
-    "bulleted_list": BasicBlock,
-    "numbered_list": BasicBlock,
-    "toggle": BasicBlock,
-    "code": CodeBlock,
-    "quote": BasicBlock,
-    "image": ImageBlock,
-    "embed": EmbedBlock,
-    "bookmark": BookmarkBlock,
-}
+class HeaderBlock(BasicBlock):
+
+    _type = "header"
+    # TODO: add custom fields
+
+
+class SubheaderBlock(BasicBlock):
+
+    _type = "sub_header"
+    # TODO: add custom fields
+
+
+class PageBlock(BasicBlock):
+
+    _type = "page"
+    # TODO: add custom fields
+
+
+class BulletedListBlock(BasicBlock):
+
+    _type = "bulleted_list"
+    # TODO: add custom fields
+
+
+class NumberedListBlock(BasicBlock):
+
+    _type = "numbered_list"
+    # TODO: add custom fields
+
+
+class ToggleBlock(BasicBlock):
+
+    _type = "toggle"
+    # TODO: add custom fields
+
+
+class QuoteBlock(BasicBlock):
+
+    _type = "quote"
+    # TODO: add custom fields
+
+
+class TextBlock(BasicBlock):
+
+    _type = "text"
+    # TODO: add custom fields
+
+
+BLOCK_TYPES = {cls._type: cls for cls in locals().values() if type(cls) == type and issubclass(cls, Block) and hasattr(cls, "_type")}

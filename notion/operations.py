@@ -1,7 +1,5 @@
-from datetime import datetime
+from utils import now
 
-def _now():
-    return int(datetime.now().timestamp() * 1000)
 
 def build_operation(id, path, args, command="set", table="block"):
     """
@@ -28,7 +26,7 @@ def operation_update_last_edited(user_id, block_id):
     return {
         "args": {
             "last_edited_by": user_id,
-            "last_edited_time": _now()
+            "last_edited_time": now()
         },
         "command": "update",
         "id": block_id,

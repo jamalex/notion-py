@@ -5,7 +5,7 @@ from urllib.parse import urljoin
 from utils import extract_id
 from blocks import Block, BLOCK_TYPES
 from settings import API_BASE_URL
-from operations import operation_update_last_edited
+from operations import operation_update_last_edited, build_operation
 
 
 class NotionClient(object):
@@ -29,7 +29,10 @@ class NotionClient(object):
         block_id = extract_id(url_or_id)
         if block_id not in self.block_cache:
             self.update_block_cache(block_id)
-        block = self.block_cache[block_id]["value"]
+        try:
+            block = self.block_cache[block_id]["value"]
+        except KeyError:
+            return None
         block_class = BLOCK_TYPES.get(block.get("type", ""), Block)
         return block_class(self, block_id)
 
@@ -78,7 +81,7 @@ class NotionClient(object):
             return
 
         data = {"pageId": block_id, "limit": 1000, "cursor": {"stack": []}, "chunkNumber": 0, "verticalColumns": False}
-        blocks = self.post("loadPageChunk", data).json()["recordMap"]["block"]
+        blocks = self.post("loadPageChunk", data).json()["recordMap"].get("block", {})
         self.block_cache.update(blocks)
 
     def bulk_update_block_cache(self, block_ids=None):
@@ -113,17 +116,26 @@ class NotionClient(object):
 
 class Transaction(object):
 
+    is_dummy_nested_transaction = False
+
     def __init__(self, client):
         self.client = client
 
     def __enter__(self):
-        assert not hasattr(self.client, "_transaction_operations"), "Client is already in a transaction."
+
+        if hasattr(self.client, "_transaction_operations"):
+            # client is already in a transaction, so we'll just make this one a nullop and let the outer one handle it
+            self.is_dummy_nested_transaction = True
+            return
+
         self.client._transaction_operations = []
         self.client._pages_to_refresh = []
         self.client._blocks_to_refresh = []
-        return self
 
     def __exit__(self, exc_type, exc_value, traceback):
+
+        if self.is_dummy_nested_transaction:
+            return
 
         operations = self.client._transaction_operations
         del self.client._transaction_operations

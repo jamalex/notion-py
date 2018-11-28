@@ -1,7 +1,12 @@
 import uuid
 
+from datetime import datetime
+
 from settings import BASE_URL
 
+
+def now():
+    return int(datetime.now().timestamp() * 1000)
 
 def extract_id(url_or_id):
     """
