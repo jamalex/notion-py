@@ -1,8 +1,11 @@
+import requests
 import uuid
 
+from bs4 import BeautifulSoup
+from urllib.parse import urlparse, parse_qs, quote_plus, unquote_plus
 from datetime import datetime
 
-from settings import BASE_URL
+from settings import BASE_URL, SIGNED_URL_PREFIX, S3_URL_PREFIX
 
 
 def now():
@@ -19,3 +22,34 @@ def extract_id(url_or_id):
         assert url_or_id.startswith(BASE_URL)
         url_or_id = url_or_id.split("#")[-1].split("/")[-1].split("?")[0].split("-")[-1]
     return str(uuid.UUID(url_or_id))
+
+
+def get_embed_data(source_url):
+
+    return requests.get("https://api.embed.ly/1/oembed?key=421626497c5d4fc2ae6b075189d602a2&url={}".format(source_url)).json()
+
+
+def get_embed_link(source_url):
+
+    data = get_embed_data(source_url)
+
+    if "html" not in data:
+        return source_url
+
+    url = list(BeautifulSoup(data["html"], 'html.parser').children)[0]["src"]
+
+    return parse_qs(urlparse(url).query)["src"][0]
+
+
+def add_signed_prefix_as_needed(url):
+    if url.startswith(S3_URL_PREFIX):
+        return SIGNED_URL_PREFIX + quote_plus(url)
+    else:
+        return url
+
+
+def remove_signed_prefix_as_needed(url):
+    if url.startswith(SIGNED_URL_PREFIX):
+        return unquote_plus(url[len(S3_URL_PREFIX):])
+    else:
+        return url

@@ -1,3 +1,7 @@
+import mimetypes
+import os
+import requests
+
 from requests import Session
 from requests.cookies import cookiejar_from_dict
 from urllib.parse import urljoin
@@ -6,7 +10,6 @@ from utils import extract_id
 from blocks import Block, BLOCK_TYPES
 from settings import API_BASE_URL
 from operations import operation_update_last_edited, build_operation
-
 
 class NotionClient(object):
     """
@@ -101,7 +104,8 @@ class NotionClient(object):
         requestlist = [{"table": "block", "id": extract_id(id)} for id in block_ids]
         results = self.post("getRecordValues", {"requests": requestlist}).json()["results"]
         for result in results:
-            self.block_cache[result["value"]["id"]] = result
+            if "value" in result:
+                self.block_cache[result["value"]["id"]] = result
 
     def as_atomic_transaction(self):
         """
@@ -112,6 +116,21 @@ class NotionClient(object):
 
     def in_transaction(self):
         return hasattr(self, "_transaction_operations")
+
+    def upload_file(self, path):
+        mimetype = mimetypes.guess_type(path)[0] or "text/plain"
+        filename = os.path.split(path)[-1]
+
+        data = self.post("getUploadFileUrl", {"bucket": "secure", "name": filename, "contentType": mimetype}).json()
+
+        put_url = data["signedPutUrl"]
+        url = data["url"]
+
+        with open(path, 'rb') as f:
+            response = requests.put(put_url, data=f, headers={"Content-type": mimetype})
+            response.raise_for_status()
+
+        return url
 
 
 class Transaction(object):

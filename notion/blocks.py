@@ -1,6 +1,7 @@
-from utils import extract_id, now
+from utils import extract_id, now, get_embed_link, get_embed_data, add_signed_prefix_as_needed, remove_signed_prefix_as_needed
 from maps import property_map, field_map, joint_map
 from operations import build_operation
+from settings import S3_URL_PREFIX
 import random
 import uuid
 
@@ -16,8 +17,22 @@ class Children(object):
         random.shuffle(content)
         self._parent.set("content", content)
 
+    def filter(self, type=None):
+        kids = list(self)
+        if type:
+            if isinstance(type, str):
+                type = BLOCK_TYPES.get(type, Block)
+            kids = [kid for kid in kids if isinstance(kid, type)]
+        return kids
+
     def _content_list(self):
         return self._parent.get("content") or []
+
+    def _get_block(self, id):
+        block = self._client.get_block(id)
+        if block.get("parent_id") != self._parent.id:
+            block._alias_parent = self._parent.id
+        return block
 
     def __repr__(self):
         rep = "[\n"
@@ -32,15 +47,15 @@ class Children(object):
     def __getitem__(self, key):
         result = self._content_list()[key]
         if isinstance(result, list):
-            return [self._client.get_block(id) for id in result]
+            return [self._get_block(id) for id in result]
         else:
-            return [self._client.get_block(result)]
+            return self._get_block(result)
 
     def __delitem__(self, key):
-        self._client.get_block(self._content_list()[key]).remove()
+        self._get_block(self._content_list()[key]).remove()
 
     def __iter__(self):
-        return iter(self._client.get_block(id) for id in self._content_list())
+        return iter(self._get_block(id) for id in self._content_list())
 
     def __reversed__(self):
         return reversed(self.__iter__())
@@ -54,7 +69,7 @@ class Children(object):
             return False
         return item_id in self._content_list()
 
-    def add(self, block_type):
+    def add_new(self, block_type):
         """
         Create a new block, add it as the last child of this parent block, and return the corresponding Block instance.
         `block_type` can be either a type string, or a Block subclass.
@@ -100,7 +115,25 @@ class Children(object):
                 )
             )
 
-        return self._client.get_block(block_id)
+        return self._get_block(block_id)
+
+    def add_alias(self, block):
+        """
+        Adds an alias to the provided `block`, i.e. adds the block's ID to the parent's content list,
+        but doesn't change the block's parent_id.
+        """
+
+        # add the block to the content list of the parent
+        self._client.submit_transaction(
+            build_operation(
+                id=self._parent.id,
+                path=["content"],
+                args={"id": block.id},
+                command="listAfter",
+            )
+        )
+
+        return self._get_block(block.id)
 
 
 class Block(object):
@@ -112,6 +145,9 @@ class Block(object):
     the `NotionClient` object of all block data, and reference that as needed from here. Data can be refreshed from the
     server using the `refresh` method.
     """
+
+    # we'll mark it as an alias if we load the Block as a child of a page that is not its parent
+    _alias_parent = None
 
     type = field_map("type")
     alive = field_map("alive")
@@ -134,19 +170,37 @@ class Block(object):
 
     @property
     def parent(self):
-        parent_id = self.get("parent_id")
-        parent_table = self.get("parent_table")
+        if not self.is_alias:
+            parent_id = self.get("parent_id")
+            parent_table = self.get("parent_table")
+        else:
+            parent_id = self._alias_parent
+            parent_table = "block"
         if not parent_id or parent_table != "block":
             return None
         if not hasattr(self, "_parent"):
             self._parent = self._client.get_block(parent_id)
         return self._parent
 
+    def _str_fields(self):
+        """
+        Determines the list of fields to include in the __str__ representation. Override and extend this in subclasses.
+        """
+        fields = ["id"]
+        # if this is a generic Block instance, include what type of block it is
+        if self.__class__ is Block:
+            fields.append("type")
+        return fields
+
     def __str__(self):
-        return "type={}".format(self.type)
+        return ", ".join(["{}={}".format(field, repr(getattr(self, field))) for field in self._str_fields() if getattr(self, field, "")])
 
     def __repr__(self):
         return "<{} ({})>".format(self.__class__.__name__, self)
+
+    @property
+    def is_alias(self):
+        return not (self._alias_parent is None)
 
     def refresh(self):
         """
@@ -192,20 +246,37 @@ class Block(object):
         Notion UI when you delete a block. Note that it doesn't seem to *actually* delete it, just orphan it.
         """
 
-        with self._client.as_atomic_transaction():
-            # Mark the block as inactive
-            self._client.submit_transaction(
-                build_operation(
-                    id=self.id,
-                    path=[],
-                    args={"alive": False},
-                    command="update",
+        if not self.is_alias:
+
+            # If it's not an alias, we actually remove the block
+            with self._client.as_atomic_transaction():
+
+                # Mark the block as inactive
+                self._client.submit_transaction(
+                    build_operation(
+                        id=self.id,
+                        path=[],
+                        args={"alive": False},
+                        command="update",
+                    )
                 )
-            )
-            # Remove the block's ID from the "content" list of its parent
+
+                # Remove the block's ID from the "content" list of its parent
+                self._client.submit_transaction(
+                    build_operation(
+                        id=self.get("parent_id"),
+                        path=["content"],
+                        args={"id": self.id},
+                        command="listRemove",
+                    )
+                )
+
+        else:
+
+            # Otherwise, if it's an alias, we only remove it from the alias parent's content list
             self._client.submit_transaction(
                 build_operation(
-                    id=self.get("parent_id"),
+                    id=self._alias_parent,
                     path=["content"],
                     args={"id": self.id},
                     command="listRemove",
@@ -237,15 +308,19 @@ class Block(object):
             # First, remove the node, before we re-insert and re-activate it at the target location
             self.remove()
 
-            # Set the parent_id of the moving block to the new parent, and mark it as active again
-            self._client.submit_transaction(
-                build_operation(
-                    id=self.id,
-                    path=[],
-                    args={"alive": True, "parent_id": new_parent_id, "parent_table": new_parent_table},
-                    command="update",
+            if not self.is_alias:
+                # Set the parent_id of the moving block to the new parent, and mark it as active again
+                self._client.submit_transaction(
+                    build_operation(
+                        id=self.id,
+                        path=[],
+                        args={"alive": True, "parent_id": new_parent_id, "parent_table": new_parent_table},
+                        command="update",
+                    )
                 )
-            )
+            else:
+                self._alias_parent = new_parent_id
+
             # Add the moving block's ID to the "content" list of the new parent
             self._client.submit_transaction(
                 build_operation(
@@ -255,8 +330,37 @@ class Block(object):
                     command=list_command,
                 )
             )
+
             # update the local block cache to reflect the updates
             self._client.bulk_update_block_cache(block_ids=[self.id, self.get("parent_id"), target_block.id, target_block.get("parent_id")])
+
+
+class DividerBlock(Block):
+
+    _type = "divider"
+
+
+class ColumnListBlock(Block):
+    """
+    Must contain only ColumnBlocks as children.
+    """
+
+    _type = "column_list"
+
+    def evenly_space_columns(self):
+        with self._client.as_atomic_transaction():
+            for child in self.children:
+                child.column_ratio = 1 / len(self.children)
+
+
+class ColumnBlock(Block):
+    """
+    Should be added as children of a ColumnListBlock.
+    """
+
+    column_ratio = field_map("format.column_ratio")
+
+    _type = "column"
 
 
 class BasicBlock(Block):
@@ -273,8 +377,8 @@ class BasicBlock(Block):
         self.type = new_type
         return self._client.get_block(self.id)
 
-    def __str__(self):
-        return "id={}, title={}".format(self.id, repr(self.title))
+    def _str_fields(self):
+        return super()._str_fields() + ["title"]
 
 
 class TodoBlock(BasicBlock):
@@ -282,6 +386,9 @@ class TodoBlock(BasicBlock):
     _type = "to_do"
 
     checked = property_map("checked", python_to_api=lambda x: "Yes" if x else "No", api_to_python=lambda x: x == "Yes")
+
+    def _str_fields(self):
+        return super()._str_fields() + ["checked"]
 
 
 class CodeBlock(BasicBlock):
@@ -292,33 +399,128 @@ class CodeBlock(BasicBlock):
     wrap = field_map("format.code_wrap")
 
 
+class FactoryBlock(BasicBlock):
+    """
+    Also known as a "Template Button". The title is the button text, and the children are the templates to clone.
+    """
+
+    _type = "factory"
+
+
+class HeaderBlock(BasicBlock):
+
+    _type = "header"
+
+
+class SubheaderBlock(BasicBlock):
+
+    _type = "sub_header"
+
+
+class PageBlock(BasicBlock):
+
+    _type = "page"
+
+
+class BulletedListBlock(BasicBlock):
+
+    _type = "bulleted_list"
+
+
+class NumberedListBlock(BasicBlock):
+
+    _type = "numbered_list"
+
+
+class ToggleBlock(BasicBlock):
+
+    _type = "toggle"
+
+
+class QuoteBlock(BasicBlock):
+
+    _type = "quote"
+
+
+class TextBlock(BasicBlock):
+
+    _type = "text"
+
+
+class EquationBlock(BasicBlock):
+
+    latex = field_map(["properties", "title", 0, 0])
+
+    _type = "equation"
+
+
 class MediaBlock(Block):
 
     caption = property_map("caption")
 
-    def __str__(self):
-        return "id={}, caption={}".format(self.id, repr(self.caption))
-
-
-class ImageBlock(MediaBlock):
-
-    _type = "image"
-
-    width = field_map("format.block_width")
+    def _str_fields(self):
+        return super()._str_fields() + ["caption"]
 
 
 class EmbedBlock(MediaBlock):
 
     _type = "embed"
 
-    source = joint_map(field_map("format.display_source"), property_map("source"))
+    display_source = field_map("format.display_source")
+    source = property_map("source")
     height = field_map("format.block_height")
     full_width = field_map("format.block_full_width")
     page_width = field_map("format.block_page_width")
     width = field_map("format.block_width")
 
+    def set_source_url(self, url):
+        self.source = url
+        self.display_source = get_embed_link(url)
 
-class BookmarkBlock(MediaBlock):
+    def _str_fields(self):
+        return super()._str_fields() + ["source"]
+
+
+class EmbedOrUploadBlock(EmbedBlock):
+
+    file_id = field_map(["file_ids", 0])
+
+    def upload_file(self, path):
+        url = self._client.upload_file(path)
+        self.display_source = url
+        self.source = url
+        self.file_id = url[len(S3_URL_PREFIX):].split("/")[0]
+
+
+class VideoBlock(EmbedOrUploadBlock):
+
+    _type = "video"
+
+
+class FileBlock(EmbedOrUploadBlock):
+
+    size = property_map("size")
+    title = property_map("title")
+
+    _type = "file"
+
+
+class AudioBlock(EmbedOrUploadBlock):
+
+    _type = "audio"
+
+
+class PDFBlock(EmbedOrUploadBlock):
+
+    _type = "pdf"
+
+
+class ImageBlock(EmbedOrUploadBlock):
+
+    _type = "image"
+
+
+class BookmarkBlock(EmbedBlock):
 
     _type = "bookmark"
 
@@ -328,53 +530,85 @@ class BookmarkBlock(MediaBlock):
     link = property_map("link")
     title = property_map("title")
 
+    def set_new_link(self, url):
+        self._client.post("setBookmarkMetadata", {"blockId": self.id, "url": url})
+        self.refresh()
 
-class HeaderBlock(BasicBlock):
 
-    _type = "header"
+class LinkToCollectionBlock(MediaBlock):
+
+    _type = "link_to_collection"
     # TODO: add custom fields
 
 
-class SubheaderBlock(BasicBlock):
+class BreadcrumbBlock(MediaBlock):
 
-    _type = "sub_header"
+    _type = "breadcrumb"
+
+
+class CollectionViewBlock(MediaBlock):
+
+    _type = "collection_view"
     # TODO: add custom fields
 
 
-class PageBlock(BasicBlock):
+class CollectionViewPageBlock(MediaBlock):
 
-    _type = "page"
+    _type = "collection_view_page"
     # TODO: add custom fields
 
 
-class BulletedListBlock(BasicBlock):
+class FramerBlock(EmbedBlock):
 
-    _type = "bulleted_list"
-    # TODO: add custom fields
-
-
-class NumberedListBlock(BasicBlock):
-
-    _type = "numbered_list"
-    # TODO: add custom fields
+    _type = "framer"
 
 
-class ToggleBlock(BasicBlock):
+class TweetBlock(EmbedBlock):
 
-    _type = "toggle"
-    # TODO: add custom fields
-
-
-class QuoteBlock(BasicBlock):
-
-    _type = "quote"
-    # TODO: add custom fields
+    _type = "tweet"
 
 
-class TextBlock(BasicBlock):
+class GistBlock(EmbedBlock):
 
-    _type = "text"
-    # TODO: add custom fields
+    _type = "gist"
+
+
+class DriveBlock(EmbedBlock):
+
+    _type = "drive"
+
+
+class FigmaBlock(EmbedBlock):
+
+    _type = "figma"
+
+
+class LoomBlock(EmbedBlock):
+
+    _type = "loom"
+
+
+class TypeformBlock(EmbedBlock):
+
+    _type = "typeform"
+
+
+class CodepenBlock(EmbedBlock):
+
+    _type = "codepen"
+
+
+class MapsBlock(EmbedBlock):
+
+    _type = "maps"
+
+
+class InvisionBlock(EmbedBlock):
+
+    _type = "invision"
+
+
+
 
 
 BLOCK_TYPES = {cls._type: cls for cls in locals().values() if type(cls) == type and issubclass(cls, Block) and hasattr(cls, "_type")}
