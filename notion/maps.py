@@ -27,6 +27,7 @@ def field_map(path, python_to_api=lambda x: x, api_to_python=lambda x: x):
 
     return property(fget=fget, fset=fset)
 
+
 def property_map(name, python_to_api=lambda x: x, api_to_python=lambda x: x, markdown=True):
     """
     Similar to `field_map`, except it works specifically with the data under the "properties" field
@@ -49,6 +50,7 @@ def property_map(name, python_to_api=lambda x: x, api_to_python=lambda x: x, mar
         return api_to_python(x)
 
     return field_map(["properties", name], python_to_api=py2api, api_to_python=api2py)
+
 
 def joint_map(*mappings):
     """

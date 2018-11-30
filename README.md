@@ -16,3 +16,17 @@ page = client.get_block("https://www.notion.so/myorg/Test-c0d20a71c0944985ae96e6
 
 page.title = "The title has now changed!"
 ```
+
+
+
+
+
+
+
+
+## TODO
+
+[ ] Support for databases
+[ ] Websocket support for live block cache updating
+[ ] "Render full page to markdown" mode
+[ ] "Import page from html" mode

@@ -1,9 +1,13 @@
+import mimetypes
+import os
+import random
+import requests
+import uuid
+
 from utils import extract_id, now, get_embed_link, get_embed_data, add_signed_prefix_as_needed, remove_signed_prefix_as_needed
 from maps import property_map, field_map, joint_map
 from operations import build_operation
 from settings import S3_URL_PREFIX
-import random
-import uuid
 
 
 class Children(object):
@@ -164,7 +168,7 @@ class Block(object):
     def children(self):
         if not hasattr(self, "_children"):
             children_ids = self.get("content", [])
-            self._client.bulk_update_block_cache(children_ids)
+            self._client.refresh_records(block=children_ids)
             self._children = Children(parent=self)
         return self._children
 
@@ -206,29 +210,30 @@ class Block(object):
         """
         Update the cached data for this block from the server (data for other blocks may be updated as a side effect).
         """
-        self._client.update_block_cache(self.id)
+        self._client.get_record_data("block", self.id, force_refresh=True)
 
-    def _get_block_data(self):
-        if self.id not in self._client.block_cache:
-            self.refresh()
-        return self._client.block_cache[self.id]
+    def _get_block_data(self, force_refresh=False):
+        return self._client.get_record_data("block", self.id, force_refresh=force_refresh)
 
-    def get(self, path=[], default=None, refresh=False):
+    def get(self, path=[], default=None, force_refresh=False):
         """
         Retrieve cached data for this block. The `path` is a list (or dot-delimited string) the specifies the field
         to retrieve the value for. If no path is supplied, return the entire cached data structure for this block.
-        If `refresh` is set to True, we refresh the data cache from the server before reading the values.
+        If `force_refresh` is set to True, we force_refresh the data cache from the server before reading the values.
         """
-        if refresh:
-            self.refresh()
+
         if isinstance(path, str):
             path = path.split(".")
-        value = self._get_block_data()["value"]
+
+        value = self._get_block_data(force_refresh=force_refresh)
+
+        # try to traverse down the sequence of keys defined in the path, to get the target value if it exists
         try:
             for key in path:
                 value = value[key]
         except KeyError:
             value = default
+
         return value
 
     def set(self, path, value, refresh=True):
@@ -332,7 +337,7 @@ class Block(object):
             )
 
             # update the local block cache to reflect the updates
-            self._client.bulk_update_block_cache(block_ids=[self.id, self.get("parent_id"), target_block.id, target_block.get("parent_id")])
+            self._client.refresh_records(block=[self.id, self.get("parent_id"), target_block.id, target_block.get("parent_id")])
 
 
 class DividerBlock(Block):
@@ -486,10 +491,19 @@ class EmbedOrUploadBlock(EmbedBlock):
     file_id = field_map(["file_ids", 0])
 
     def upload_file(self, path):
-        url = self._client.upload_file(path)
-        self.display_source = url
-        self.source = url
-        self.file_id = url[len(S3_URL_PREFIX):].split("/")[0]
+
+        mimetype = mimetypes.guess_type(path)[0] or "text/plain"
+        filename = os.path.split(path)[-1]
+
+        data = self._client.post("getUploadFileUrl", {"bucket": "secure", "name": filename, "contentType": mimetype}).json()
+
+        with open(path, 'rb') as f:
+            response = requests.put(data["signedPutUrl"], data=f, headers={"Content-type": mimetype})
+            response.raise_for_status()
+
+        self.display_source = data["url"]
+        self.source = data["url"]
+        self.file_id = data["url"][len(S3_URL_PREFIX):].split("/")[0]
 
 
 class VideoBlock(EmbedOrUploadBlock):
