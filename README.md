@@ -26,7 +26,8 @@ page.title = "The title has now changed!"
 
 ## TODO
 
-[ ] Support for databases
-[ ] Websocket support for live block cache updating
-[ ] "Render full page to markdown" mode
-[ ] "Import page from html" mode
+* Utilities to support updating/creating collection schemas
+* Utilities to support updating/creating collection_view queries
+* Websocket support for live block cache updating
+* "Render full page to markdown" mode
+* "Import page from html" mode

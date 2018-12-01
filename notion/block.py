@@ -5,9 +5,10 @@ import requests
 import uuid
 
 from utils import extract_id, now, get_embed_link, get_embed_data, add_signed_prefix_as_needed, remove_signed_prefix_as_needed
-from maps import property_map, field_map, joint_map
+from maps import property_map, field_map
 from operations import build_operation
 from settings import S3_URL_PREFIX
+from records import Record
 
 
 class Children(object):
@@ -39,6 +40,8 @@ class Children(object):
         return block
 
     def __repr__(self):
+        if not len(self):
+            return "[]"
         rep = "[\n"
         for child in self:
             rep += "  {},\n".format(repr(child))
@@ -62,7 +65,7 @@ class Children(object):
         return iter(self._get_block(id) for id in self._content_list())
 
     def __reversed__(self):
-        return reversed(self.__iter__())
+        return reversed(iter(self))
 
     def __contains__(self, item):
         if isinstance(item, str):
@@ -140,7 +143,7 @@ class Children(object):
         return self._get_block(block.id)
 
 
-class Block(object):
+class Block(Record):
     """
     Most data in Notion is stored as a "block" (including pages, and all the individual elements within a page).
     These blocks have different types, and in some cases we create subclasses of this class to represent those types.
@@ -150,19 +153,17 @@ class Block(object):
     server using the `refresh` method.
     """
 
+    _table = "block"
+
     # we'll mark it as an alias if we load the Block as a child of a page that is not its parent
     _alias_parent = None
 
     type = field_map("type")
     alive = field_map("alive")
 
-    def __init__(self, client, block_id, *args, **kwargs):
+    def __init__(self, client, id, *args, **kwargs):
         self._client = client
-        self._block_id = extract_id(block_id)
-
-    @property
-    def id(self):
-        return self._block_id
+        self._id = extract_id(id)
 
     @property
     def children(self):
@@ -174,76 +175,36 @@ class Block(object):
 
     @property
     def parent(self):
+
         if not self.is_alias:
             parent_id = self.get("parent_id")
             parent_table = self.get("parent_table")
         else:
             parent_id = self._alias_parent
             parent_table = "block"
-        if not parent_id or parent_table != "block":
+
+        if parent_table == "block":
+            return self._client.get_block(parent_id)
+        elif parent_table == "collection":
+            return self._client.get_collection(parent_id)
+        elif parent_table == "space":
+            return self._client.get_space(parent_id)
+        else:
             return None
-        if not hasattr(self, "_parent"):
-            self._parent = self._client.get_block(parent_id)
-        return self._parent
 
     def _str_fields(self):
         """
         Determines the list of fields to include in the __str__ representation. Override and extend this in subclasses.
         """
-        fields = ["id"]
+        fields = super()._str_fields()
         # if this is a generic Block instance, include what type of block it is
-        if self.__class__ is Block:
+        if type(self) is Block:
             fields.append("type")
         return fields
-
-    def __str__(self):
-        return ", ".join(["{}={}".format(field, repr(getattr(self, field))) for field in self._str_fields() if getattr(self, field, "")])
-
-    def __repr__(self):
-        return "<{} ({})>".format(self.__class__.__name__, self)
 
     @property
     def is_alias(self):
         return not (self._alias_parent is None)
-
-    def refresh(self):
-        """
-        Update the cached data for this block from the server (data for other blocks may be updated as a side effect).
-        """
-        self._client.get_record_data("block", self.id, force_refresh=True)
-
-    def _get_block_data(self, force_refresh=False):
-        return self._client.get_record_data("block", self.id, force_refresh=force_refresh)
-
-    def get(self, path=[], default=None, force_refresh=False):
-        """
-        Retrieve cached data for this block. The `path` is a list (or dot-delimited string) the specifies the field
-        to retrieve the value for. If no path is supplied, return the entire cached data structure for this block.
-        If `force_refresh` is set to True, we force_refresh the data cache from the server before reading the values.
-        """
-
-        if isinstance(path, str):
-            path = path.split(".")
-
-        value = self._get_block_data(force_refresh=force_refresh)
-
-        # try to traverse down the sequence of keys defined in the path, to get the target value if it exists
-        try:
-            for key in path:
-                value = value[key]
-        except KeyError:
-            value = default
-
-        return value
-
-    def set(self, path, value, refresh=True):
-        """
-        Set a specific `value` (under the specific `path`) on the block's data structure on the server.
-        If `refresh` is set to True, we refresh the data cache from the server after sending the update.
-        """
-        self._client.submit_transaction(build_operation(id=self.id, path=path, args=value))
-        if refresh:
-            self.refresh()
 
     def remove(self):
         """
@@ -563,10 +524,39 @@ class BreadcrumbBlock(MediaBlock):
 class CollectionViewBlock(MediaBlock):
 
     _type = "collection_view"
-    # TODO: add custom fields
+
+    @property
+    def collection(self):
+        collection_id = self.get("collection_id")
+        if not collection_id:
+            return None
+        if not hasattr(self, "_collection"):
+            self._collection = self._client.get_collection(collection_id)
+        return self._collection
+
+    @property
+    def views(self):
+        return [self._client.get_collection_view(view_id) for view_id in self.get("view_ids")]
+
+    @property
+    def title(self):
+        return self.collection.name
+    @title.setter
+    def title(self, val):
+        self.collection.name = val
+
+    @property
+    def description(self):
+        return self.collection.description
+    @description.setter
+    def description(self, val):
+        self.collection.description = val
+
+    def _str_fields(self):
+        return super()._str_fields() + ["caption"]
 
 
-class CollectionViewPageBlock(MediaBlock):
+class CollectionViewPageBlock(CollectionViewBlock):
 
     _type = "collection_view_page"
     # TODO: add custom fields
@@ -620,9 +610,6 @@ class MapsBlock(EmbedBlock):
 class InvisionBlock(EmbedBlock):
 
     _type = "invision"
-
-
-
 
 
 BLOCK_TYPES = {cls._type: cls for cls in locals().values() if type(cls) == type and issubclass(cls, Block) and hasattr(cls, "_type")}

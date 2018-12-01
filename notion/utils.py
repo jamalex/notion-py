@@ -4,6 +4,7 @@ import uuid
 from bs4 import BeautifulSoup
 from urllib.parse import urlparse, parse_qs, quote_plus, unquote_plus
 from datetime import datetime
+from slugify import slugify as _dash_slugify
 
 from settings import BASE_URL, SIGNED_URL_PREFIX, S3_URL_PREFIX
 
@@ -53,3 +54,7 @@ def remove_signed_prefix_as_needed(url):
         return unquote_plus(url[len(S3_URL_PREFIX):])
     else:
         return url
+
+
+def slugify(original):
+    return _dash_slugify(original).replace("-", "_")
