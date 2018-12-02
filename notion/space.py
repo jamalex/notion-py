@@ -6,6 +6,8 @@ class Space(Record):
 
     _table = "space"
 
+    child_list_key = "pages"
+
     name = field_map("name")
     domain = field_map("domain")
     icon = field_map("icon")
@@ -24,3 +26,21 @@ class Space(Record):
 
     def _str_fields(self):
         return super()._str_fields() + ["name", "domain"]
+
+    def add_page(self, title, type="page", shared=False):
+        assert type in ["page", "collection_view_page"], "'type' must be one of 'page' or 'collection_view_page'"
+        if shared:
+            permissions = [{
+                "role": "editor",
+                "type": "space_permission",
+            }]
+        else:
+            permissions = [{
+                "role": "editor",
+                "type": "user_permission",
+                "user_id": self._client.user_id,
+            }]
+        page_id = self._client.create_record("block", self, type=type, permissions=permissions)
+        page = self._client.get_block(page_id)
+        page.title = title
+        return page

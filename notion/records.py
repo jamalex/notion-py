@@ -4,6 +4,9 @@ from operations import build_operation
 
 class Record(object):
 
+    # if a subclass has a list of ids that should be update when child records are removed, it should specify the key here
+    child_list_key = None
+
     def __init__(self, client, id, *args, **kwargs):
         self._client = client
         self._id = extract_id(id)

@@ -88,39 +88,7 @@ class Children(object):
         elif not isinstance(block_type, str):
             raise Exception("block_type must be a string or a Block subclass with a _type attribute")
 
-        # make up a new UUID; apparently we get to choose our own!
-        block_id = str(uuid.uuid4())
-
-        with self._client.as_atomic_transaction():
-
-            # create the new block
-            self._client.submit_transaction(
-                build_operation(
-                    args={
-                        "id": block_id,
-                        "type": block_type,
-                        "version": 1,
-                        "alive": True,
-                        "created_by": self._client.user_id,
-                        "created_time": now(),
-                        "parent_id": self._parent.id,
-                        "parent_table": "block",
-                    },
-                    command="set",
-                    id=block_id,
-                    path=[],
-                )
-            )
-
-            # add the block to the content list of the parent
-            self._client.submit_transaction(
-                build_operation(
-                    id=self._parent.id,
-                    path=["content"],
-                    args={"id": block_id},
-                    command="listAfter",
-                )
-            )
+        block_id = self._client.create_record(table="block", parent=self._parent, type=block_type)
 
         return self._get_block(block_id)
 
@@ -157,6 +125,8 @@ class Block(Record):
 
     # we'll mark it as an alias if we load the Block as a child of a page that is not its parent
     _alias_parent = None
+
+    child_list_key = "content"
 
     type = field_map("type")
     alive = field_map("alive")
@@ -227,15 +197,17 @@ class Block(Record):
                     )
                 )
 
-                # Remove the block's ID from the "content" list of its parent
-                self._client.submit_transaction(
-                    build_operation(
-                        id=self.get("parent_id"),
-                        path=["content"],
-                        args={"id": self.id},
-                        command="listRemove",
+                # Remove the block's ID from a list on its parent, if needed
+                if self.parent.child_list_key:
+                    self._client.submit_transaction(
+                        build_operation(
+                            id=self.get("parent_id"),
+                            path=[self.parent.child_list_key],
+                            args={"id": self.id},
+                            command="listRemove",
+                            table=self.get("parent_table"),
+                        )
                     )
-                )
 
         else:
 

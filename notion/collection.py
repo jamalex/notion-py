@@ -1,12 +1,10 @@
-import uuid
-
 from datetime import datetime
 
 from operations import build_operation
 from records import Record
 from maps import property_map, field_map
 from block import Block, PageBlock
-from utils import now, add_signed_prefix_as_needed, remove_signed_prefix_as_needed, slugify
+from utils import add_signed_prefix_as_needed, remove_signed_prefix_as_needed, slugify
 from markdown import markdown_to_notion, notion_to_markdown
 
 
@@ -20,11 +18,6 @@ class Collection(Record):
     name = field_map("name", api_to_python=notion_to_markdown, python_to_api=markdown_to_notion)
     description = field_map("description", api_to_python=notion_to_markdown, python_to_api=markdown_to_notion)
     cover = field_map("cover")
-
-    @property
-    def views(self):
-        view = self.get_record_data("collection_view", id)
-        return Collection(self, collection_id) if coll else None
 
     def get_schema_properties(self):
         """
@@ -53,27 +46,7 @@ class Collection(Record):
         Create a new empty CollectionRowBlock under this collection, and return the instance.
         """
 
-        # make up a new UUID; apparently we get to choose our own!
-        row_id = str(uuid.uuid4())
-
-        # create the new row
-        self._client.submit_transaction(
-            build_operation(
-                args={
-                    "id": row_id,
-                    "type": "page",
-                    "version": 1,
-                    "alive": True,
-                    "created_by": self._client.user_id,
-                    "created_time": now(),
-                    "parent_id": self.id,
-                    "parent_table": "collection",
-                },
-                command="set",
-                id=row_id,
-                path=[],
-            )
-        )
+        row_id = self._client.create_record("block", self)
 
         return CollectionRowBlock(self._client, row_id)
 
@@ -98,7 +71,7 @@ class CollectionView(Record):
         return CollectionQuery(collection=self.collection, collection_view=self, **kwargs)
 
     def default_query(self):
-        return CollectionQuery(collection=self.collection, collection_view=self, **self.get("query", {}))
+        return self.build_query(**self.get("query", {}))
 
 
 class BoardView(CollectionView):

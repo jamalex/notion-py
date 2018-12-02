@@ -1,11 +1,12 @@
 import re
 import json
+import uuid
 
 from requests import Session, HTTPError
 from requests.cookies import cookiejar_from_dict
 from urllib.parse import urljoin
 
-from utils import extract_id
+from utils import extract_id, now
 from block import Block, BLOCK_TYPES
 from collection import Collection, CollectionView, CollectionRowBlock, COLLECTION_VIEW_TYPES
 from settings import API_BASE_URL
@@ -151,6 +152,50 @@ class NotionClient(object):
         self._store.store_recordmap(response["recordMap"])
 
         return [self.get_block(page_id) for page_id in response["results"]]
+
+    def create_record(self, table, parent, **kwargs):
+
+        # make up a new UUID; apparently we get to choose our own!
+        record_id = str(uuid.uuid4())
+
+        args={
+            "id": record_id,
+            "version": 1,
+            "alive": True,
+            "created_by": self.user_id,
+            "created_time": now(),
+            "parent_id": parent.id,
+            "parent_table": parent._table,
+        }
+
+        args.update(kwargs)
+
+        with self.as_atomic_transaction():
+
+            # create the new record
+            self.submit_transaction(
+                build_operation(
+                    args=args,
+                    command="set",
+                    id=record_id,
+                    path=[],
+                    table=table,
+                )
+            )
+
+            # add the record to the content list of the parent, if needed
+            if parent.child_list_key:
+                self.submit_transaction(
+                    build_operation(
+                        id=parent.id,
+                        path=[parent.child_list_key],
+                        args={"id": record_id},
+                        command="listAfter",
+                        table=parent._table,
+                    )
+                )
+
+        return record_id
 
 
 class Transaction(object):
