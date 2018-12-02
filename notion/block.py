@@ -4,11 +4,11 @@ import random
 import requests
 import uuid
 
-from utils import extract_id, now, get_embed_link, get_embed_data, add_signed_prefix_as_needed, remove_signed_prefix_as_needed
-from maps import property_map, field_map
-from operations import build_operation
-from settings import S3_URL_PREFIX
-from records import Record
+from .utils import extract_id, now, get_embed_link, get_embed_data, add_signed_prefix_as_needed, remove_signed_prefix_as_needed
+from .maps import property_map, field_map
+from .operations import build_operation
+from .settings import S3_URL_PREFIX
+from .records import Record
 
 
 class Children(object):
@@ -525,13 +525,12 @@ class CollectionViewBlock(MediaBlock):
         self.collection.description = val
 
     def _str_fields(self):
-        return super()._str_fields() + ["caption"]
+        return super()._str_fields() + ["title", "collection"]
 
 
 class CollectionViewPageBlock(CollectionViewBlock):
 
     _type = "collection_view_page"
-    # TODO: add custom fields
 
 
 class FramerBlock(EmbedBlock):

@@ -1,4 +1,4 @@
-from markdown import markdown_to_notion, notion_to_markdown
+from .markdown import markdown_to_notion, notion_to_markdown
 
 
 def field_map(path, python_to_api=lambda x: x, api_to_python=lambda x: x):

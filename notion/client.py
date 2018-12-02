@@ -6,14 +6,14 @@ from requests import Session, HTTPError
 from requests.cookies import cookiejar_from_dict
 from urllib.parse import urljoin
 
-from utils import extract_id, now
-from block import Block, BLOCK_TYPES
-from collection import Collection, CollectionView, CollectionRowBlock, COLLECTION_VIEW_TYPES
-from settings import API_BASE_URL
-from operations import operation_update_last_edited, build_operation
-from store import RecordStore
-from user import User
-from space import Space
+from .utils import extract_id, now
+from .block import Block, BLOCK_TYPES
+from .collection import Collection, CollectionView, CollectionRowBlock, COLLECTION_VIEW_TYPES
+from .settings import API_BASE_URL
+from .operations import operation_update_last_edited, build_operation
+from .store import RecordStore
+from .user import User
+from .space import Space
 
 
 class NotionClient(object):
@@ -93,7 +93,7 @@ class NotionClient(object):
     def refresh_records(self, **kwargs):
         """
         The keyword arguments map table names into lists of (or singular) record IDs to load for that table.
-        Use True to refresh all known records for that table.
+        Use `True` instead of a list to refresh all known records for that table.
         """
         self._store.call_get_record_values(**kwargs)
 

@@ -1,4 +1,4 @@
-from utils import now
+from .utils import now
 
 
 def build_operation(id, path, args, command="set", table="block"):

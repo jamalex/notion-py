@@ -40,7 +40,6 @@ page.title = "The title has now changed, and has *live-updated* in the browser!"
 
 # TODO
 
-* Package for PyPI
 * Support inline "user" and "page" links, and reminders, in markdown conversion
 * Utilities to support updating/creating collection schemas
 * Utilities to support updating/creating collection_view queries

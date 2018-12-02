@@ -6,7 +6,7 @@ from urllib.parse import urlparse, parse_qs, quote_plus, unquote_plus
 from datetime import datetime
 from slugify import slugify as _dash_slugify
 
-from settings import BASE_URL, SIGNED_URL_PREFIX, S3_URL_PREFIX
+from .settings import BASE_URL, SIGNED_URL_PREFIX, S3_URL_PREFIX
 
 
 def now():

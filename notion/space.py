@@ -1,5 +1,5 @@
-from records import Record
-from maps import property_map, field_map
+from .records import Record
+from .maps import property_map, field_map
 
 
 class Space(Record):
