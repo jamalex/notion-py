@@ -38,7 +38,7 @@ class Space(Record):
             permissions = [{
                 "role": "editor",
                 "type": "user_permission",
-                "user_id": self._client.user_id,
+                "user_id": self._client.current_user.id,
             }]
         page_id = self._client.create_record("block", self, type=type, permissions=permissions)
         page = self._client.get_block(page_id)

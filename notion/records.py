@@ -65,3 +65,12 @@ class Record(object):
         self._client.submit_transaction(build_operation(id=self.id, path=path, args=value, table=self._table))
         if refresh:
             self.refresh()
+
+    def __eq__(self, other):
+        return self.id == other.id
+
+    def __ne__(self, other):
+        return self.id != other.id
+
+    def __hash__(self):
+        return hash(self.id)

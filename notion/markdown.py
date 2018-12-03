@@ -122,7 +122,7 @@ def notion_to_markdown(notion):
 
     use_underscores = True
 
-    for item in notion:
+    for item in (notion or []):
 
         markdown = ""
 

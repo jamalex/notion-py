@@ -1,14 +1,16 @@
+import logging
 import mimetypes
 import os
 import random
 import requests
+import time
 import uuid
 
-from .utils import extract_id, now, get_embed_link, get_embed_data, add_signed_prefix_as_needed, remove_signed_prefix_as_needed
 from .maps import property_map, field_map
 from .operations import build_operation
-from .settings import S3_URL_PREFIX
 from .records import Record
+from .settings import S3_URL_PREFIX, BASE_URL
+from .utils import extract_id, now, get_embed_link, get_embed_data, add_signed_prefix_as_needed, remove_signed_prefix_as_needed
 
 
 class Children(object):
@@ -34,9 +36,22 @@ class Children(object):
         return self._parent.get("content") or []
 
     def _get_block(self, id):
+
         block = self._client.get_block(id)
+
+        # TODO: this is needed because there seems to be a server-side race condition with setting and getting data
+        # (sometimes the data previously sent hasn't yet propagated to all DB nodes, perhaps? so it fails to load here)
+        i = 0
+        while block is None:
+            i += 1
+            if i > 20:
+                return None
+            time.sleep(0.1)
+            block = self._client.get_block(id)
+
         if block.get("parent_id") != self._parent.id:
             block._alias_parent = self._parent.id
+
         return block
 
     def __repr__(self):
@@ -76,7 +91,7 @@ class Children(object):
             return False
         return item_id in self._content_list()
 
-    def add_new(self, block_type):
+    def add_new(self, block_type, **kwargs):
         """
         Create a new block, add it as the last child of this parent block, and return the corresponding Block instance.
         `block_type` can be either a type string, or a Block subclass.
@@ -90,7 +105,17 @@ class Children(object):
 
         block_id = self._client.create_record(table="block", parent=self._parent, type=block_type)
 
-        return self._get_block(block_id)
+        block = self._get_block(block_id)
+
+        if kwargs:
+            with self._client.as_atomic_transaction():
+                for key, val in kwargs.items():
+                    if hasattr(block, key):
+                        setattr(block, key, val)
+                    else:
+                        logging.warning("{} does not have attribute '{}' to be set; skipping.".format(block, key))
+
+        return block
 
     def add_alias(self, block):
         """
@@ -135,6 +160,12 @@ class Block(Record):
         self._client = client
         self._id = extract_id(id)
 
+    def get_browseable_url(self):
+        if "page" in self._type:
+            return BASE_URL + self.id.replace("-", "")
+        else:
+            return self.parent.get_browseable_url() + "#" + self.id.replace("-", "")
+
     @property
     def children(self):
         if not hasattr(self, "_children"):
@@ -162,6 +193,10 @@ class Block(Record):
         else:
             return None
 
+    @property
+    def space_info(self):
+        return self._client.post("getPublicPageData", {"blockId": self.id}).json()
+
     def _str_fields(self):
         """
         Determines the list of fields to include in the __str__ representation. Override and extend this in subclasses.
@@ -176,7 +211,7 @@ class Block(Record):
     def is_alias(self):
         return not (self._alias_parent is None)
 
-    def remove(self):
+    def remove(self, permanently=False):
         """
         Removes the node from its parent, and marks it as inactive. This corresponds to what happens in the
         Notion UI when you delete a block. Note that it doesn't seem to *actually* delete it, just orphan it.
@@ -208,6 +243,11 @@ class Block(Record):
                             table=self.get("parent_table"),
                         )
                     )
+
+            if permanently:
+                block_id = self.id
+                self._client.post("deleteBlocks", {"blockIds": [block_id], "permanentlyDelete": True})
+                del self._client._store._data["block"][block_id]
 
         else:
 
@@ -359,6 +399,8 @@ class PageBlock(BasicBlock):
 
     _type = "page"
 
+    icon = field_map("format.page_icon", api_to_python=add_signed_prefix_as_needed, python_to_api=remove_signed_prefix_as_needed)
+
 
 class BulletedListBlock(BasicBlock):
 
@@ -387,7 +429,7 @@ class TextBlock(BasicBlock):
 
 class EquationBlock(BasicBlock):
 
-    latex = field_map(["properties", "title", 0, 0])
+    latex = field_map(["properties", "title"], python_to_api=lambda x: [[x]], api_to_python=lambda x: x[0][0])
 
     _type = "equation"
 
@@ -508,7 +550,9 @@ class CollectionViewBlock(MediaBlock):
 
     @property
     def views(self):
-        return [self._client.get_collection_view(view_id) for view_id in self.get("view_ids")]
+        if not self.collection:
+            return None
+        return [self._client.get_collection_view(view_id, collection=self.collection) for view_id in self.get("view_ids")]
 
     @property
     def title(self):
@@ -529,6 +573,8 @@ class CollectionViewBlock(MediaBlock):
 
 
 class CollectionViewPageBlock(CollectionViewBlock):
+
+    icon = field_map("format.page_icon", api_to_python=add_signed_prefix_as_needed, python_to_api=remove_signed_prefix_as_needed)
 
     _type = "collection_view_page"
 

@@ -46,7 +46,7 @@ class Collection(Record):
         Create a new empty CollectionRowBlock under this collection, and return the instance.
         """
 
-        row_id = self._client.create_record("block", self)
+        row_id = self._client.create_record("block", self, type="page")
 
         return CollectionRowBlock(self._client, row_id)
 
@@ -257,7 +257,7 @@ class CollectionRowBlock(PageBlock):
             for url in val:
                 url = remove_signed_prefix_as_needed(url)
                 filename = url.split("/")[-1]
-                filelist += [filename, [['a', url]], [',']]
+                filelist += [[filename, [['a', url]]], [',']]
             val = filelist[:-1]
         if prop["type"] in ["checkbox"]:
             if not isinstance(val, bool):

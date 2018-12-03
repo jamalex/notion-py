@@ -28,8 +28,14 @@ class NotionClient(object):
         self.session.cookies = cookiejar_from_dict({"token_v2": token_v2})
         self.block_cache = {}
         self.user_cache = {}
-        self.user_id = self.post("getUserAnalyticsSettings", {"platform": "web"}).json()["user_id"]
         self._store = RecordStore(self)
+        self._update_user_info()
+
+    def _update_user_info(self):
+        records = self.post("loadUserContent", {}).json()["recordMap"]
+        self._store.store_recordmap(records)
+        self.current_user = self.get_user(list(records["notion_user"].keys())[0])
+        self.current_space = self.get_space(list(records["space"].keys())[0])
 
     def get_record_data(self, table, id, force_refresh=False):
         return self._store.get(table, id, force_refresh=force_refresh)
@@ -103,6 +109,7 @@ class NotionClient(object):
         """
         url = urljoin(API_BASE_URL, endpoint)
         response = self.session.post(url, json=data)
+        # print(json.dumps(data, indent=2))
         if response.status_code == 400:
             print("Attempted to POST to {}, with data: {}".format(endpoint, json.dumps(data, indent=2)))
             raise HTTPError(response.json().get("message", "There was an error (400) submitting the request."))
@@ -116,7 +123,7 @@ class NotionClient(object):
 
         if update_last_edited:
             updated_blocks = set([op["id"] for op in operations if op["table"] == "block"])
-            operations += [operation_update_last_edited(self.user_id, block_id) for block_id in updated_blocks]
+            operations += [operation_update_last_edited(self.current_user.id, block_id) for block_id in updated_blocks]
 
         # if we're in a transaction, just add these operations to the list; otherwise, execute them right away
         if self.in_transaction():
@@ -125,7 +132,8 @@ class NotionClient(object):
             data = {
                 "operations": operations
             }
-            return self.post("submitTransaction", data).json()
+            self.post("submitTransaction", data).json()
+            self._store.run_local_operations(operations)
 
     def query_collection(self, *args, **kwargs):
         return self._store.call_query_collection(*args, **kwargs)
@@ -162,7 +170,7 @@ class NotionClient(object):
             "id": record_id,
             "version": 1,
             "alive": True,
-            "created_by": self.user_id,
+            "created_by": self.current_user.id,
             "created_time": now(),
             "parent_id": parent.id,
             "parent_table": parent._table,

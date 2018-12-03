@@ -1,4 +1,5 @@
 from collections import defaultdict
+from copy import deepcopy
 from tzlocal import get_localzone
 
 from .utils import extract_id
@@ -6,7 +7,7 @@ from .utils import extract_id
 
 class Missing(object):
 
-    def __bool__(self):
+    def __nonzero__(self):
         return False
 
 Missing = Missing()
@@ -126,3 +127,53 @@ class RecordStore(object):
 
         self.call_get_record_values(**self._records_to_refresh)
         self._records_to_refresh = {}
+
+    def run_local_operations(self, operations):
+        """
+        Called to simulate the results of running the operations on the server, to keep the record store in sync
+        even when we haven't completed a refresh (or we did a refresh but the database hadn't actually updated yet...)
+        """
+        for operation in operations:
+            self.run_local_operation(**operation)
+
+    def run_local_operation(self, table, id, path, command, args):
+
+        path = deepcopy(path)
+
+        ref = self._data[table][id]
+
+        # loop and descend down the path until it's consumed, or if we're doing a "set", there's one key left
+        while (len(path) > 1) or (path and command != "set"):
+            comp = path.pop(0)
+            if comp not in ref:
+                ref[comp] = [] if "list" in command else {}
+            ref = ref[comp]
+
+        if command == "update":
+            assert isinstance(ref, dict)
+            ref.update(args)
+        elif command == "set":
+            assert isinstance(ref, dict)
+            if path:
+                ref[path[0]] = args
+            else:
+                # this is the case of "setting the top level" (i.e. creating a record)
+                ref.clear()
+                ref.update(args)
+        elif command == "listAfter":
+            assert isinstance(ref, list)
+            if "after" in args:
+                ref.insert(ref.index(args["after"]) + 1, args["id"])
+            else:
+                ref.append(args["id"])
+        elif command == "listBefore":
+            assert isinstance(ref, list)
+            if "before" in args:
+                ref.insert(ref.index(args["before"]), args["id"])
+            else:
+                ref.insert(0, args["id"])
+        elif command == "listRemove":
+            try:
+                ref.remove(args["id"])
+            except ValueError:
+                pass
