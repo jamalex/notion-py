@@ -1,12 +1,14 @@
 # notion-py
 
-Unofficial Python API client for Notion.so
+Unofficial Python 3 client for Notion.so API v3
 
-Warning: This is still experimental, and has not yet been packaged. To use it, clone the repo and add the repo directory to your `PYTHONPATH`. Ideally in a virtualenv, you'll also need to `pip install -r requirements.txt`.
+Warning: This is still somewhat experimental, and doesn't have 100% API coverage. Issues and pull requests welcome!
 
 # Usage
 
 ## Quickstart
+
+`pip install notion`
 
 ```Python
 from notion.client import NotionClient
@@ -34,9 +36,49 @@ page.title = "The title has now changed, and has *live-updated* in the browser!"
 
 ## Example: Traversing the block tree
 
-...
+```Python
+for child in page.children:
+    print(child.title)
 
+print("Parent of {} is {}".format(page.id, page.parent.id))
+```
 
+## Example: Adding a new node
+
+```Python
+newchild = page.children.add_new(TodoBlock, title="Something to get done")
+newchild.checked = True
+```
+
+## Example: Deleting nodes
+
+```Python
+# soft-delete
+page.remove()
+
+# hard-delete
+page.remove(permanently=True)
+```
+
+## Create an embedded content type (iframe, video, etc)
+
+```Python
+video = page.children.add_new(VideoBlock, width=200)
+# sets "property.source" to the URL, and "format.display_source" to the embedly-converted URL
+video.set_source_url("https://www.youtube.com/watch?v=oHg5SJYRHA0")
+```
+
+## Moving blocks around
+
+```Python
+# move my block to after the video
+my_block.move_to(video, "after")
+
+# move my block to the end of otherblock's children
+my_block.move_to(otherblock, "last-child")
+
+# (you can also use "before" and "first-child")
+```
 
 # TODO
 
