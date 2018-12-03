@@ -60,7 +60,7 @@ page.remove()
 page.remove(permanently=True)
 ```
 
-## Create an embedded content type (iframe, video, etc)
+## Example: Create an embedded content type (iframe, video, etc)
 
 ```Python
 video = page.children.add_new(VideoBlock, width=200)
@@ -68,7 +68,7 @@ video = page.children.add_new(VideoBlock, width=200)
 video.set_source_url("https://www.youtube.com/watch?v=oHg5SJYRHA0")
 ```
 
-## Moving blocks around
+## Example: Moving blocks around
 
 ```Python
 # move my block to after the video
@@ -79,6 +79,71 @@ my_block.move_to(otherblock, "last-child")
 
 # (you can also use "before" and "first-child")
 ```
+
+## Example: Working with databases, aka "collections" (tables, boards, etc)
+
+Here's how things fit together:
+- Main container block: `CollectionViewBlock` (inline) / `CollectionViewPageBlock` (full-page)
+    - `Collection` (holds the schema, and is parent to the database rows themselves)
+        - `CollectionRowBlock`
+        - `CollectionRowBlock`
+        - ... (more database records)
+    - `CollectionView` (holds filters/sort/etc about each specific view)
+
+Note: For convenience, we automatically map the database "columns" (aka properties), based on the schema defined in the `Collection`, into getter/setter attributes on the `CollectionRowBlock` instances. The attribute name is a "slugified" version of the name of the column. So if you have a column named "Estimated value", you can read and write it via `myrowblock.estimated_value`. Some basic validation may be conducted, and it will be converted into the appropriate internal format. For columns of type "Person", we expect a `User` instance, or a list of them, and for a "Relation" we expect a singular/list of instances of a subclass of `Block`.
+
+```Python
+# Access a database using the URL of the database page or the inline block
+cv = client.get_collection_view("https://www.notion.so/myorg/8511b9fc522249f79b90768b832599cc?v=8dee2a54f6b64cb296c83328adba78e1")
+
+# List all the records with "Bob" in them
+for row in cv.collection.get_rows(search="Bob"):
+    print("We estimate the value of '{}' at {}".format(row.name, row.estimated_value))
+
+# Add a record
+row.collection.add_row()
+row.name = "Just some data"
+row.is_confirmed = True
+row.estimated_value = 399
+row.files = ["https://www.birdlife.org/sites/default/files/styles/1600/public/slide.jpg"]
+row.person = client.current_user
+row.tags = ["A", "C"]
+row.where_to = "https://learningequality.org"
+
+# Run a filtered/sorted query using a view's default parameters
+result = cv.default_query().execute()
+for row in results:
+    print(row)
+
+# Run an "aggregation" query
+aggregate_params = [{
+    "property": "estimated_value",
+    "aggregation_type": "sum",
+    "id": "total_value",
+}]
+result = cv.build_query(aggregate=aggregate_params).execute()
+print("Total estimated value:", result.get_aggregate("total_value"))
+
+# Run a "filtered" query
+filter_params = [{
+    "property": "assigned_to",
+    "comparator": "enum_contains",
+    "value": client.current_user,
+}]
+result = cv.build_query(filter=filter_params).execute()
+print("Things assigned to me:", result)
+
+# Run a "sorted" query
+sort_params = [{
+    "direction": "descending",
+    "property": "estimated_value",
+}]
+result = cv.build_query(sort=sort_params).execute()
+print("Sorted results, showing most valuable first:", result)
+```
+
+Note: You can combine `filter`, `aggregate`, and `sort`. See more examples of queries by setting up complex views in Notion, and then inspecting `cv.get("query")`
+
 
 # TODO
 

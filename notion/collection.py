@@ -1,3 +1,4 @@
+from copy import deepcopy
 from datetime import datetime
 
 from .block import Block, PageBlock
@@ -101,6 +102,20 @@ class GalleryView(CollectionView):
     _type = "gallery"
 
 
+def _normalize_query_list(query_list, collection):
+    query_list = deepcopy(query_list)
+    for item in query_list:
+        # convert slugs to property ids
+        if "property" in item:
+            prop = collection.get_schema_property(item["property"])
+            if prop:
+                item["property"] = prop["id"]
+        # convert any instantiated objects into their ids
+        if "value" in item:
+            if hasattr(item["value"], "id"):
+                item["value"] = item["value"].id
+    return query_list
+
 class CollectionQuery(object):
 
     def __init__(self, collection, collection_view, search="", type="table", aggregate=[], filter=[], filter_operator="and", sort=[], calendar_by=""):
@@ -108,10 +123,10 @@ class CollectionQuery(object):
         self.collection_view = collection_view
         self.search = search
         self.type = type
-        self.aggregate = aggregate
-        self.filter = filter
+        self.aggregate = _normalize_query_list(aggregate, collection)
+        self.filter = _normalize_query_list(filter, collection)
         self.filter_operator = filter_operator
-        self.sort = sort
+        self.sort = _normalize_query_list(sort, collection)
         self.calendar_by = calendar_by
         self._client = collection._client
 
@@ -167,6 +182,9 @@ class CollectionRowBlock(PageBlock):
             raise AttributeError("Object does not have property '{}'".format(identifier))
         
         val = self.get(["properties", prop["id"]])
+
+        if val is None:
+            return None
 
         if prop["type"] in ["title", "text"]:
             val = notion_to_markdown(val)
@@ -299,12 +317,19 @@ class QueryResult(object):
         self.collection = collection
         self._client = collection._client
         self._block_ids = self._get_block_ids(result)
+        self.aggregates = result.get("aggregationResults", [])
 
     def _get_block_ids(self, result):
         return result["blockIds"]
 
     def _get_block(self, id):
         return CollectionRowBlock(self._client, id)
+
+    def get_aggregate(self, id):
+        for agg in self.aggregates:
+            if id == agg["id"]:
+                return agg["value"]
+        return None
 
     def __repr__(self):
         if not len(self):
@@ -316,7 +341,7 @@ class QueryResult(object):
         return rep
 
     def __len__(self):
-        return len(self._get_block_ids())
+        return len(self._block_ids)
 
     def __getitem__(self, key):
         return list(iter(self))[key]

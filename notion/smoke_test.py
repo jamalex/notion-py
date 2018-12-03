@@ -65,13 +65,45 @@ def run_live_smoke_test(token_v2, parent_page_url_or_id):
     cvb.title = "My data!"
 
     row = collection.add_row()
+    assert row.person is None
     row.name = "Just some data"
     row.check_yo_self = True
+    row.estimated_value = 42
     row.files = ["https://www.birdlife.org/sites/default/files/styles/1600/public/slide.jpg"]
     row.person = client.current_user
     row.tags = ["A", "C"]
     row.where_to = "https://learningequality.org"
-    
+
+    # Run a filtered/sorted query using the view's default parameters
+    result = view.default_query().execute()
+    assert row in result
+
+    # Run an "aggregation" query
+    aggregate_params = [{
+        "property": "estimated_value",
+        "aggregation_type": "sum",
+        "id": "total_value",
+    }]
+    result = view.build_query(aggregate=aggregate_params).execute()
+    assert result.get_aggregate("total_value") == 42
+
+    # Run a "filtered" query
+    filter_params = [{
+        "property": "person",
+        "comparator": "enum_does_not_contain",
+        "value": client.current_user,
+    }]
+    result = view.build_query(filter=filter_params).execute()
+    assert row not in result
+
+    # Run a "sorted" query
+    sort_params = [{
+        "direction": "descending",
+        "property": "estimated_value",
+    }]
+    result = view.build_query(sort=sort_params).execute()
+    assert row in result
+
     print("Check it out and make sure it looks good, then press any key here to delete it...")
     input()
 
@@ -119,6 +151,7 @@ def get_collection_schema():
                 "value": "C"
             }]},
         "LL[(": {"name": "Person", "type": "person"},
+        "4Jv$": {"name": "Estimated value", "type": "number"},
         "OBcJ": {"name": "Where to?", "type": "url"},
         "dV$q": {"name": "Files", "type": "file"},
         "title": {"name": "Name", "type": "title"}
