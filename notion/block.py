@@ -214,7 +214,8 @@ class Block(Record):
     def remove(self, permanently=False):
         """
         Removes the node from its parent, and marks it as inactive. This corresponds to what happens in the
-        Notion UI when you delete a block. Note that it doesn't seem to *actually* delete it, just orphan it.
+        Notion UI when you delete a block. Note that it doesn't *actually* delete it, just orphan it, unless
+        `permanently` is set to True, in which case we make an extra call to hard-delete.
         """
 
         if not self.is_alias:
@@ -247,7 +248,7 @@ class Block(Record):
             if permanently:
                 block_id = self.id
                 self._client.post("deleteBlocks", {"blockIds": [block_id], "permanentlyDelete": True})
-                del self._client._store._data["block"][block_id]
+                del self._client._store._values["block"][block_id]
 
         else:
 

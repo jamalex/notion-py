@@ -15,6 +15,10 @@ class Record(object):
     def id(self):
         return self._id
 
+    @property
+    def role(self):
+        return self._client._store.get_role(self._table, self.id)
+
     def _str_fields(self):
         """
         Determines the list of fields to include in the __str__ representation. Override and extend this in subclasses.

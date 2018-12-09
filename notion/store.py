@@ -17,12 +17,17 @@ class RecordStore(object):
 
     def __init__(self, client):
         self._client = client
-        self._data = defaultdict(lambda: defaultdict(dict))
+        self._values = defaultdict(lambda: defaultdict(dict))
+        self._role = defaultdict(lambda: defaultdict(dict))
         self._records_to_refresh = {}
         self._pages_to_refresh = []
 
     def _get(self, table, id):
-        return self._data[table].get(id, Missing)
+        return self._values[table].get(id, Missing)
+
+    def get_role(self, table, id, force_refresh=False):
+        self.get(table, id, force_refresh=force_refresh)
+        return self._role[table].get(id, None)
 
     def get(self, table, id, force_refresh=False):
         id = extract_id(id)
@@ -50,7 +55,7 @@ class RecordStore(object):
 
             # ensure "ids" is a proper list
             if ids is True:
-                ids = list(self._data.get(table, {}).keys())
+                ids = list(self._values.get(table, {}).keys())
             if isinstance(ids, str):
                 ids = [ids]
 
@@ -65,7 +70,8 @@ class RecordStore(object):
             results = self._client.post("getRecordValues", {"requests": requestlist}).json()["results"]
             for request, result in zip(requestlist, results):
                 if "value" in result:
-                    self._data[request["table"]][request["id"]] = result["value"]
+                    self._values[request["table"]][request["id"]] = result["value"]
+                    self._role[request["table"]][request["id"]] = result["role"]
 
     def call_load_page_chunk(self, page_id):
         
@@ -82,7 +88,8 @@ class RecordStore(object):
     def store_recordmap(self, recordmap):
         for table, records in recordmap.items():
             for id, record in records.items():
-                self._data[table][id] = record["value"]
+                self._values[table][id] = record["value"]
+                self._role[table][id] = record["role"]
 
     def call_query_collection(self, collection_id, collection_view_id, search="", type="table", aggregate=[], filter=[], filter_operator="and", sort=[], calendar_by=""):
 
@@ -140,7 +147,7 @@ class RecordStore(object):
 
         path = deepcopy(path)
 
-        ref = self._data[table][id]
+        ref = self._values[table][id]
 
         # loop and descend down the path until it's consumed, or if we're doing a "set", there's one key left
         while (len(path) > 1) or (path and command != "set"):

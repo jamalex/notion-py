@@ -26,8 +26,6 @@ class NotionClient(object):
     def __init__(self, token_v2):
         self.session = Session()
         self.session.cookies = cookiejar_from_dict({"token_v2": token_v2})
-        self.block_cache = {}
-        self.user_cache = {}
         self._store = RecordStore(self)
         self._update_user_info()
 
@@ -117,6 +115,9 @@ class NotionClient(object):
         return response
 
     def submit_transaction(self, operations, update_last_edited=True):
+
+        if not operations:
+            return
 
         if isinstance(operations, dict):
             operations = [operations]
