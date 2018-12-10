@@ -148,6 +148,7 @@ You can also see [more examples in action in the smoke test runner](https://gith
 
 # TODO
 
+* Cloning pages hierarchically
 * Support inline "user" and "page" links, and reminders, in markdown conversion
 * Utilities to support updating/creating collection schemas
 * Utilities to support updating/creating collection_view queries

@@ -156,10 +156,6 @@ class Block(Record):
     type = field_map("type")
     alive = field_map("alive")
 
-    def __init__(self, client, id, *args, **kwargs):
-        self._client = client
-        self._id = extract_id(id)
-
     def get_browseable_url(self):
         if "page" in self._type:
             return BASE_URL + self.id.replace("-", "")

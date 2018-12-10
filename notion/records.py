@@ -10,6 +10,8 @@ class Record(object):
     def __init__(self, client, id, *args, **kwargs):
         self._client = client
         self._id = extract_id(id)
+        self._callbacks = []
+        self._client._monitor.subscribe(self)
 
     @property
     def id(self):
@@ -36,6 +38,21 @@ class Record(object):
         Update the cached data for this record from the server (data for other records may be updated as a side effect).
         """
         self._get_record_data(force_refresh=True)
+
+    def add_callback(self, callback, callback_id=None, extra_kwargs={}):
+        callback_obj = self._client._store.add_callback(self, callback, callback_id=callback_id, extra_kwargs=extra_kwargs)
+        self._callbacks.append(callback_obj)
+        return callback_obj
+
+    def remove_callbacks(self, callback_or_callback_id_prefix=None):
+        if callback_or_callback_id_prefix is None:
+            for callback_obj in list(self._callbacks):
+                self._client._store.remove_callbacks(self._table, self.id, callback_or_callback_id_prefix=callback_obj)
+            self._callbacks = []
+        else:
+            self._client._store.remove_callbacks(self._table, self.id, callback_or_callback_id_prefix=callback_or_callback_id_prefix)
+            if callback_or_callback_id_prefix in self._callbacks:
+                self._callbacks.remove(callback_or_callback_id_prefix)
 
     def _get_record_data(self, force_refresh=False):
         return self._client.get_record_data(self._table, self.id, force_refresh=force_refresh)
