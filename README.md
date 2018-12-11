@@ -33,6 +33,9 @@ page.title = "The title has now changed, and has *live-updated* in the browser!"
 - The API doesn't have strong validation of most data, so be careful to maintain the structures Notion is expecting. You can view the full internal structure of a record by calling `myrecord.get()` with no arguments.
 - When you call `client.get_block`, you can pass in either an ID, or the URL of a page. Note that pages themselves are just `blocks`, as are all the chunks of content on the page. You can get the URL for a block within a page by clicking "Copy Link" in the context menu for the block, and pass that URL into `get_block` as well.
 
+## Updating records
+
+We keep a local cache of all data that passes through. When you reference an attribute on a `Record`, we first look to that cache to retrieve the value. If it doesn't find it, it retrieves it from the server. You can also manually refresh the data for a `Record` by calling the `refresh` method on it. By default (unless we instantiate `NotionClient` with `monitor=False`), we also [subscribe to long-polling updates](https://github.com/jamalex/notion-py/blob/master/notion/monitor.py) for any instantiated `Record`, so the local cache data for these `Records` should be automatically live-updated shortly after any data changes on the server. The long-polling happens in a background daemon thread.
 
 ## Example: Traversing the block tree
 
@@ -78,6 +81,22 @@ my_block.move_to(video, "after")
 my_block.move_to(otherblock, "last-child")
 
 # (you can also use "before" and "first-child")
+```
+
+## Example: Subscribing to updates
+
+We can "watch" a `Record` so that we get a [callback](https://github.com/jamalex/notion-py/blob/master/notion/store.py) whenever it changes. Combined with the live-updating of records based on long-polling, this allows for a "reactive" design, where actions in our local application can be triggered in response to interactions with the Notion interface.
+
+```Python
+
+# define a callback (note: all arguments are optional, just include the ones you care about)
+def my_callback(record, difference):
+    print("The record's title is now:" record.title)
+    print("Here's what was changed:")
+    print(difference)
+
+# move my block to after the video
+my_block.add_callback(my_callback)
 ```
 
 ## Example: Working with databases, aka "collections" (tables, boards, etc)

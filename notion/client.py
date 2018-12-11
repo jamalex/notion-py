@@ -24,12 +24,13 @@ class NotionClient(object):
     for internal use -- the main one you'll likely want to use is `get_block`.
     """
 
-    def __init__(self, token_v2):
+    def __init__(self, token_v2, monitor=True):
         self.session = Session()
         self.session.cookies = cookiejar_from_dict({"token_v2": token_v2})
         self._store = RecordStore(self)
-        self._monitor = Monitor(self)
-        self._monitor.poll_async()
+        if monitor:
+            self._monitor = Monitor(self)
+            self._monitor.poll_async()
         self._update_user_info()
 
     def _update_user_info(self):

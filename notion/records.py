@@ -11,7 +11,8 @@ class Record(object):
         self._client = client
         self._id = extract_id(id)
         self._callbacks = []
-        self._client._monitor.subscribe(self)
+        if hasattr(self._client, "_monitor"):
+            self._client._monitor.subscribe(self)
 
     @property
     def id(self):
