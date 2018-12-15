@@ -76,7 +76,6 @@ class Monitor(object):
         self.client.session.post("{}?sessionId={}&transport=polling&sid={}".format(self.root_url, self.session_id, self.sid), data=data)
 
     def poll(self, retries=10):
-        
         try:
             response = self.client.session.get("{}?sessionId={}&EIO=3&transport=polling&sid={}".format(self.root_url, self.session_id, self.sid))
             response.raise_for_status()
@@ -116,7 +115,8 @@ class Monitor(object):
 
     def poll_async(self):
         if self.thread:
-            raise Exeption("Already polling async")
+            # Already polling async; no need to have two threads
+            return
         self.thread = threading.Thread(target=self.poll_forever, daemon=True)
         self.thread.start()
 

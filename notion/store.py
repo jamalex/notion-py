@@ -95,7 +95,7 @@ class RecordStore(object):
             try:
                 with open(self._get_cache_path(attr)) as f:
                     for k, v in json.load(f).items():
-                        getattr(self, attr)[k].update()
+                        getattr(self, attr)[k].update(v)
             except FileNotFoundError:
                 pass
 
