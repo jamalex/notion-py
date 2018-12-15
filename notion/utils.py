@@ -12,6 +12,7 @@ from .settings import BASE_URL, SIGNED_URL_PREFIX, S3_URL_PREFIX
 def now():
     return int(datetime.now().timestamp() * 1000)
 
+
 def extract_id(url_or_id):
     """
     Extract the block/page ID from a Notion.so URL -- if it's a bare page URL, it will be the
@@ -21,7 +22,7 @@ def extract_id(url_or_id):
     """
     if url_or_id.startswith("http"):
         assert url_or_id.startswith(BASE_URL)
-        url_or_id = url_or_id.split("#")[-1].split("/")[-1].split("?")[0].split("-")[-1]
+        url_or_id = url_or_id.split("#")[-1].split("/")[-1].split("&p=")[-1].split("?")[0].split("-")[-1]
     return str(uuid.UUID(url_or_id))
 
 

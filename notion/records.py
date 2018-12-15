@@ -60,8 +60,8 @@ class Record(object):
 
     def get(self, path=[], default=None, force_refresh=False):
         """
-        Retrieve cached data for this block. The `path` is a list (or dot-delimited string) the specifies the field
-        to retrieve the value for. If no path is supplied, return the entire cached data structure for this block.
+        Retrieve cached data for this record. The `path` is a list (or dot-delimited string) the specifies the field
+        to retrieve the value for. If no path is supplied, return the entire cached data structure for this record.
         If `force_refresh` is set to True, we force_refresh the data cache from the server before reading the values.
         """
 
@@ -79,14 +79,11 @@ class Record(object):
 
         return value
 
-    def set(self, path, value, refresh=True):
+    def set(self, path, value):
         """
-        Set a specific `value` (under the specific `path`) on the block's data structure on the server.
-        If `refresh` is set to True, we refresh the data cache from the server after sending the update.
+        Set a specific `value` (under the specific `path`) on the record's data structure on the server.
         """
         self._client.submit_transaction(build_operation(id=self.id, path=path, args=value, table=self._table))
-        if refresh:
-            self.refresh()
 
     def __eq__(self, other):
         return self.id == other.id

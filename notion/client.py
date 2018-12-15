@@ -1,5 +1,6 @@
-import re
+import hashlib
 import json
+import re
 import uuid
 
 from requests import Session, HTTPError
@@ -24,10 +25,11 @@ class NotionClient(object):
     for internal use -- the main one you'll likely want to use is `get_block`.
     """
 
-    def __init__(self, token_v2, monitor=True):
+    def __init__(self, token_v2, monitor=True, cache_key=None):
         self.session = Session()
         self.session.cookies = cookiejar_from_dict({"token_v2": token_v2})
-        self._store = RecordStore(self)
+        cache_key = cache_key or hashlib.sha256(token_v2.encode()).hexdigest()
+        self._store = RecordStore(self, cache_key=cache_key)
         if monitor:
             self._monitor = Monitor(self)
             self._monitor.poll_async()

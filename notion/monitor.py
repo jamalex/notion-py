@@ -1,9 +1,7 @@
-import asyncio
 import json
 import re
 import threading
 import uuid
-import websockets
 
 from collections import defaultdict
 from inspect import signature
@@ -127,6 +125,13 @@ class Monitor(object):
             self.poll()
 
     def poll_forever_websocket(self):
+        """
+        An alternative implementation of the watch behavior using websockets. Doesn't seem to be particularly faster.
+        Note: requires installation of the "asyncio" and "websockets" packages.
+        """
+
+        import asyncio
+        import websockets
 
         async def hello():
 

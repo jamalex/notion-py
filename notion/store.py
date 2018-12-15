@@ -1,11 +1,15 @@
+import datetime
+import json
 import uuid
 
 from collections import defaultdict
 from copy import deepcopy
 from dictdiffer import diff
 from inspect import signature
+from pathlib import Path
 from tzlocal import get_localzone
 
+from .settings import CACHE_DIR
 from .utils import extract_id
 
 
@@ -37,7 +41,10 @@ class Callback(object):
             if arg not in params:
                 del kwargs[arg]
 
-        self.callback(**kwargs)
+        try:
+            self.callback(**kwargs)
+        except Exception as e:
+            print("Error while processing callback for {}: {}".format(repr(self.record), repr(e)))
 
     def __eq__(self, val):
         if isinstance(val, str):
@@ -50,13 +57,15 @@ class Callback(object):
 
 class RecordStore(object):
 
-    def __init__(self, client):
+    def __init__(self, client, cache_key=None):
         self._client = client
+        self._cache_key = cache_key or str(int(datetime.datetime.now().timestamp() * 1000))
         self._values = defaultdict(lambda: defaultdict(dict))
         self._role = defaultdict(lambda: defaultdict(str))
         self._callbacks = defaultdict(lambda: defaultdict(list))
         self._records_to_refresh = {}
         self._pages_to_refresh = []
+        self._load_cache()
 
     def _get(self, table, id):
         return self._values[table].get(id, Missing)
@@ -77,6 +86,22 @@ class RecordStore(object):
         callbacks = self._callbacks[table][id]
         while callback_or_callback_id_prefix in callbacks:
             callbacks.remove(callback_or_callback_id_prefix)
+
+    def _get_cache_path(self, attribute):
+        return str(Path(CACHE_DIR).joinpath("{}{}.json".format(self._cache_key, attribute)))
+
+    def _load_cache(self, attributes=("_values", "_role")):
+        for attr in attributes:
+            try:
+                with open(self._get_cache_path(attr)) as f:
+                    for k, v in json.load(f).items():
+                        getattr(self, attr)[k].update()
+            except FileNotFoundError:
+                pass
+
+    def _save_cache(self, attribute):
+        with open(self._get_cache_path(attribute), "w") as f:
+            json.dump(getattr(self, attribute), f)
 
     def _trigger_callbacks(self, table, id, difference):
         for callback_obj in self._callbacks[table][id]:
@@ -102,10 +127,12 @@ class RecordStore(object):
     def _update_record(self, table, id, value=None, role=None):
         if role:
             self._role[table][id] = role
+            self._save_cache("_role")
         if value:
             old_val = self._values[table][id]
             difference = list(diff(old_val, value, ignore=["version", "last_edited_time", "last_edited_by"]))
             self._values[table][id] = value
+            self._save_cache("_values")
             if old_val and difference:
                 self._trigger_callbacks(table, id, difference)
 
