@@ -7,15 +7,16 @@ from requests import Session, HTTPError
 from requests.cookies import cookiejar_from_dict
 from urllib.parse import urljoin
 
-from .utils import extract_id, now
 from .block import Block, BLOCK_TYPES
 from .collection import Collection, CollectionView, CollectionRowBlock, COLLECTION_VIEW_TYPES
-from .settings import API_BASE_URL
+from .logger import logger
+from .monitor import Monitor
 from .operations import operation_update_last_edited, build_operation
+from .settings import API_BASE_URL
+from .space import Space
 from .store import RecordStore
 from .user import User
-from .space import Space
-from .monitor import Monitor
+from .utils import extract_id, now
 
 
 class NotionClient(object):
@@ -116,9 +117,8 @@ class NotionClient(object):
         """
         url = urljoin(API_BASE_URL, endpoint)
         response = self.session.post(url, json=data)
-        # print(json.dumps(data, indent=2))
         if response.status_code == 400:
-            print("Attempted to POST to {}, with data: {}".format(endpoint, json.dumps(data, indent=2)))
+            logger.error("Got 400 error attempting to POST to {}, with data: {}".format(endpoint, json.dumps(data, indent=2)))
             raise HTTPError(response.json().get("message", "There was an error (400) submitting the request."))
         response.raise_for_status()
         return response

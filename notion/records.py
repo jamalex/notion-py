@@ -1,5 +1,6 @@
-from .utils import extract_id
+from .logger import logger
 from .operations import build_operation
+from .utils import extract_id
 
 
 class Record(object):

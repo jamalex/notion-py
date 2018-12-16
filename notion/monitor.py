@@ -1,33 +1,43 @@
 import json
 import re
+import requests
 import threading
+import time
 import uuid
 
 from collections import defaultdict
 from inspect import signature
 from requests import HTTPError
 
+from .logger import logger
 from .records import Record
+
 
 class Monitor(object):
 
     thread = None
 
-    def __init__(self, client, root_url="https://msgstore.www.notion.so/primus/", verbose=False):
+    def __init__(self, client, root_url="https://msgstore.www.notion.so/primus/"):
         self.client = client
+        self.session = requests.Session()
         self.session_id = str(uuid.uuid4())
         self.root_url = root_url
         self._subscriptions = set()
-        self.verbose = verbose
         self.initialize()
 
     def _decode_numbered_json_thing(self, thing):
+
+        thing = thing.decode().strip()
+
+        for ping in re.findall('\d+:\d+"primus::ping::\d+"', thing):
+            logger.debug("Received ping: {}".format(ping))
+            self.post_data(ping.replace("::ping::", "::pong::"))
+
         results = []
-        for blob in re.findall("\d+:\d+(\{.*?\})(?=\d|$)", thing.decode().strip()):
+        for blob in re.findall("\d+:\d+(\{.*?\})(?=\d|$)", thing):
             results.append(json.loads(blob))
-        if thing and not results:
-            if self.verbose:
-                print("Could not parse:", thing.decode())
+        if thing and not results and "::ping::" not in thing:
+            logger.debug("Could not parse monitoring response: {}".format(thing))
         return results
 
     def _encode_numbered_json_thing(self, data):
@@ -41,9 +51,13 @@ class Monitor(object):
 
     def initialize(self):
 
-        response = self.client.session.get("{}?sessionId={}&EIO=3&transport=polling".format(self.root_url, self.session_id))
+        logger.debug("Initializing new monitoring session.")
+
+        response = self.session.get("{}?sessionId={}&EIO=3&transport=polling".format(self.root_url, self.session_id))
 
         self.sid = self._decode_numbered_json_thing(response.content)[0]["sid"]
+
+        logger.debug("New monitoring session ID is: {}".format(self.sid))
 
         # resubscribe to any existing subscriptions if we're reconnecting
         old_subscriptions, self._subscriptions = self._subscriptions, set()
@@ -62,6 +76,9 @@ class Monitor(object):
         for record in records:
 
             if record not in self._subscriptions:
+
+                logger.debug("Subscribing new record to the monitoring watchlist: {}/{}".format(record._table, record.id))
+
                 # add the record to the list of records to restore if we're disconnected
                 self._subscriptions.add(record)
                 sub_data.append({
@@ -73,25 +90,43 @@ class Monitor(object):
 
         data = self._encode_numbered_json_thing(sub_data)
 
-        self.client.session.post("{}?sessionId={}&transport=polling&sid={}".format(self.root_url, self.session_id, self.sid), data=data)
+        self.post_data(data)
+
+    def post_data(self, data):
+
+        logger.debug("Posting monitoring data: {}".format(data))
+
+        self.session.post("{}?sessionId={}&transport=polling&sid={}".format(self.root_url, self.session_id, self.sid), data=data)
 
     def poll(self, retries=10):
+        logger.debug("Starting new long-poll request")
         try:
-            response = self.client.session.get("{}?sessionId={}&EIO=3&transport=polling&sid={}".format(self.root_url, self.session_id, self.sid))
+            response = self.session.get("{}?sessionId={}&EIO=3&transport=polling&sid={}".format(self.root_url, self.session_id, self.sid))
             response.raise_for_status()
-        except HTTPError:
+        except HTTPError as e:
+            try:
+                message = "{} / {}".format(response.content, e)
+            except:
+                message = "{}".format(e)
+            logger.warn("Problem with submitting polling request: {} (will retry {} more times)".format(message, retries))
+            time.sleep(0.1)
             if retries <= 0:
                 raise
-            self.initialize()
+            if retries <= 5:
+                logger.error("Persistent error submitting polling request: {} (will retry {} more times)".format(message, retries))
+                # if we're close to giving up, also try reinitializing the session
+                self.initialize()
             self.poll(retries=retries-1)
-        
+
         self._refresh_updated_records(self._decode_numbered_json_thing(response.content))
 
     def _refresh_updated_records(self, events):
-        
+
         records_to_refresh = defaultdict(list)
 
         for event in events:
+
+            logger.debug("Received the following event from the remote server: {}".format(event))
 
             if not isinstance(event, dict):
                 continue
@@ -106,10 +141,10 @@ class Monitor(object):
 
                 local_version = self.client._store.get_current_version(record_table, record_id)
                 if event["value"] > local_version:
+                    logger.debug("Record {}/{} has changed; refreshing to update from version {} to version {}".format(record_table, record_id, local_version, event["value"]))
                     records_to_refresh[record_table].append(record_id)
                 else:
-                    if self.verbose:
-                        print("Record already up-to-date, not updating:", record_table, record_id, event["value"], local_version)
+                    logger.debug("Record {}/{} already at version {}, not trying to update to version {}".format(record_table, record_id, local_version, event["value"]))
 
         self.client.refresh_records(**records_to_refresh)
 
@@ -143,7 +178,7 @@ class Monitor(object):
                     headers = [("Cookie", "AWSALB={};".format(self.client.session.cookies.get("AWSALB")))]
 
                     url = "wss://msgstore.www.notion.so/primus/?sessionId={}&EIO=3&transport=websocket&sid={}".format(self.session_id, self.sid)
-                    
+
                     async with websockets.connect(url, extra_headers=headers) as websocket:
                         await websocket.send("2probe")
                         await websocket.recv()

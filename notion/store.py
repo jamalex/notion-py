@@ -6,16 +6,18 @@ from collections import defaultdict
 from copy import deepcopy
 from dictdiffer import diff
 from inspect import signature
+from multiprocessing import Lock
 from pathlib import Path
 from tzlocal import get_localzone
 
+from .logger import logger
 from .settings import CACHE_DIR
 from .utils import extract_id
 
 
 class MissingClass(object):
 
-    def __nonzero__(self):
+    def __bool__(self):
         return False
 
 Missing = MissingClass()
@@ -36,15 +38,21 @@ class Callback(object):
         kwargs["callback_id"] = self.callback_id
         kwargs["difference"] = difference
 
-        params = signature(self.callback).parameters
-        for arg in list(kwargs.keys()):
-            if arg not in params:
-                del kwargs[arg]
+        logger.debug("Firing callback {} with kwargs: {}".format(self.callback, kwargs))
 
+        # trim down the parameters we'll be passing, to include only those the callback will accept
+        params = signature(self.callback).parameters
+        if not any(["**" in str(param) for param in params.values()]):
+            # there's no "**kwargs" in the callback signature, so remove any unaccepted params
+            for arg in list(kwargs.keys()):
+                if arg not in params:
+                    del kwargs[arg]
+
+        # perform the callback, gracefully handling any exceptions
         try:
             self.callback(**kwargs)
         except Exception as e:
-            print("Error while processing callback for {}: {}".format(repr(self.record), repr(e)))
+            logger.error("Error while processing callback for {}: {}".format(repr(self.record), repr(e)))
 
     def __eq__(self, val):
         if isinstance(val, str):
@@ -58,6 +66,7 @@ class Callback(object):
 class RecordStore(object):
 
     def __init__(self, client, cache_key=None):
+        self._mutex = Lock()
         self._client = client
         self._cache_key = cache_key or str(int(datetime.datetime.now().timestamp() * 1000))
         self._values = defaultdict(lambda: defaultdict(dict))
@@ -65,7 +74,8 @@ class RecordStore(object):
         self._callbacks = defaultdict(lambda: defaultdict(list))
         self._records_to_refresh = {}
         self._pages_to_refresh = []
-        self._load_cache()
+        with self._mutex:
+            self._load_cache()
 
     def _get(self, table, id):
         return self._values[table].get(id, Missing)
@@ -125,16 +135,27 @@ class RecordStore(object):
         return result if result is not Missing else None
 
     def _update_record(self, table, id, value=None, role=None):
-        if role:
-            self._role[table][id] = role
-            self._save_cache("_role")
-        if value:
-            old_val = self._values[table][id]
-            difference = list(diff(old_val, value, ignore=["version", "last_edited_time", "last_edited_by"]))
-            self._values[table][id] = value
-            self._save_cache("_values")
-            if old_val and difference:
-                self._trigger_callbacks(table, id, difference)
+
+        callback_queue = []
+
+        with self._mutex:
+            if role:
+                logger.debug("Updating 'role' for {}/{} to {}".format(table, id, role))
+                self._role[table][id] = role
+                self._save_cache("_role")
+            if value:
+                logger.debug("Updating 'value' for {}/{} to {}".format(table, id, value))
+                old_val = self._values[table][id]
+                difference = list(diff(old_val, value, ignore=["version", "last_edited_time", "last_edited_by"]))
+                self._values[table][id] = value
+                self._save_cache("_values")
+                if old_val and difference:
+                    logger.debug("Value changed! Difference: {}".format(difference))
+                    callback_queue.append((table, id, difference))
+
+        # run callbacks outside the mutex to avoid lockups
+        for cb in callback_queue:
+            self._trigger_callbacks(*cb)
 
     def call_get_record_values(self, **kwargs):
         """
@@ -161,6 +182,7 @@ class RecordStore(object):
             requestlist += [{"table": table, "id": extract_id(id)} for id in ids]
 
         if requestlist:
+            logger.debug("Calling 'getRecordValues' endpoint for requests: {}".format(requestlist))
             results = self._client.post("getRecordValues", {"requests": requestlist}).json()["results"]
             for request, result in zip(requestlist, results):
                 self._update_record(request["table"], request["id"], value=result.get("value"), role=result.get("role"))
@@ -173,7 +195,7 @@ class RecordStore(object):
             return -1
 
     def call_load_page_chunk(self, page_id):
-        
+
         if self._client.in_transaction():
             self._pages_to_refresh.append(page_id)
             return
@@ -243,9 +265,9 @@ class RecordStore(object):
 
     def run_local_operation(self, table, id, path, command, args):
 
-        path = deepcopy(path)
-
-        new_val = deepcopy(self._values[table][id])
+        with self._mutex:
+            path = deepcopy(path)
+            new_val = deepcopy(self._values[table][id])
 
         ref = new_val
 

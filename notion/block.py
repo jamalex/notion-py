@@ -6,6 +6,7 @@ import requests
 import time
 import uuid
 
+from .logger import logger
 from .maps import property_map, field_map
 from .operations import build_operation
 from .records import Record

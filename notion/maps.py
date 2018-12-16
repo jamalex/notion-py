@@ -1,3 +1,4 @@
+from .logger import logger
 from .markdown import markdown_to_notion, notion_to_markdown
 
 

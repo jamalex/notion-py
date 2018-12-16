@@ -2,6 +2,7 @@ from copy import deepcopy
 from datetime import datetime
 
 from .block import Block, PageBlock
+from .logger import logger
 from .maps import property_map, field_map
 from .markdown import markdown_to_notion, notion_to_markdown
 from .operations import build_operation

@@ -91,7 +91,7 @@ def run_live_smoke_test(token_v2, parent_page_url_or_id):
     filter_params = [{
         "property": "person",
         "comparator": "enum_does_not_contain",
-        "value": client.current_user,
+        "value": client.current_user.id,
     }]
     result = view.build_query(filter=filter_params).execute()
     assert row not in result

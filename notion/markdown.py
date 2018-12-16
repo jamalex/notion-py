@@ -59,6 +59,9 @@ def _get_format(notion_segment, as_set=False):
 
 def markdown_to_notion(markdown):
 
+    if not isinstance(markdown, str):
+        markdown = str(markdown)
+
     # commonmark doesn't support strikethrough, so we need to handle it ourselves
     while markdown.count("~~") >= 2:
         markdown = markdown.replace("~~", "<s>", 1)
