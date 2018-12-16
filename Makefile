@@ -2,7 +2,7 @@
 build: clean
 	python3 setup.py sdist bdist_wheel
 
-release:
+release: build
 	twine upload -s dist/*
 
 clean:
