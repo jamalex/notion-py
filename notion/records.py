@@ -1,6 +1,8 @@
+from copy import deepcopy
+
 from .logger import logger
 from .operations import build_operation
-from .utils import extract_id
+from .utils import extract_id, get_by_path
 
 
 class Record(object):
@@ -41,6 +43,17 @@ class Record(object):
         """
         self._get_record_data(force_refresh=True)
 
+    def _convert_diff_to_changelist(self, difference, old_val, new_val):
+        changed_values = set()
+        for operation, path, values in deepcopy(difference):
+            path = path.split(".") if isinstance(path, str) else path
+            if operation in ["add", "remove"]:
+                path.append(values[0][0])
+            while isinstance(path[-1], int):
+                path.pop()
+            changed_values.add(".".join(map(str, path)))
+        return [("changed_value", path, (get_by_path(path, old_val), get_by_path(path, new_val))) for path in changed_values]
+
     def add_callback(self, callback, callback_id=None, extra_kwargs={}):
         callback_obj = self._client._store.add_callback(self, callback, callback_id=callback_id, extra_kwargs=extra_kwargs)
         self._callbacks.append(callback_obj)
@@ -65,20 +78,7 @@ class Record(object):
         to retrieve the value for. If no path is supplied, return the entire cached data structure for this record.
         If `force_refresh` is set to True, we force_refresh the data cache from the server before reading the values.
         """
-
-        if isinstance(path, str):
-            path = path.split(".")
-
-        value = self._get_record_data(force_refresh=force_refresh)
-
-        # try to traverse down the sequence of keys defined in the path, to get the target value if it exists
-        try:
-            for key in path:
-                value = value[key]
-        except KeyError:
-            value = default
-
-        return value
+        return get_by_path(path, self._get_record_data(force_refresh=force_refresh), default=default)
 
     def set(self, path, value):
         """

@@ -1,5 +1,6 @@
 import datetime
 import json
+import threading
 import uuid
 
 from collections import defaultdict
@@ -25,18 +26,19 @@ Missing = MissingClass()
 
 class Callback(object):
 
-    def __init__(self, callback, record, callback_id=None, extra_kwargs={}):
+    def __init__(self, callback, record, callback_id=None, extra_kwargs={}, watch_children=True):
         self.callback = callback
         self.record = record
         self.callback_id = callback_id or str(uuid.uuid4())
         self.extra_kwargs = extra_kwargs
 
-    def __call__(self, difference):
+    def __call__(self, difference, old_val, new_val):
         kwargs = {}
         kwargs.update(self.extra_kwargs)
         kwargs["record"] = self.record
         kwargs["callback_id"] = self.callback_id
         kwargs["difference"] = difference
+        kwargs["changes"] = self.record._convert_diff_to_changelist(difference, old_val, new_val)
 
         logger.debug("Firing callback {} with kwargs: {}".format(self.callback, kwargs))
 
@@ -50,7 +52,8 @@ class Callback(object):
 
         # perform the callback, gracefully handling any exceptions
         try:
-            self.callback(**kwargs)
+            # trigger the callback within its own thread, so it won't block others if it's long-running
+            threading.Thread(target=callback, kwargs=kwargs, daemon=True).start()
         except Exception as e:
             logger.error("Error while processing callback for {}: {}".format(repr(self.record), repr(e)))
 
@@ -113,9 +116,9 @@ class RecordStore(object):
         with open(self._get_cache_path(attribute), "w") as f:
             json.dump(getattr(self, attribute), f)
 
-    def _trigger_callbacks(self, table, id, difference):
+    def _trigger_callbacks(self, table, id, difference, old_val, new_val):
         for callback_obj in self._callbacks[table][id]:
-            callback_obj(difference)
+            callback_obj(difference, old_val, new_val)
 
     def get_role(self, table, id, force_refresh=False):
         self.get(table, id, force_refresh=force_refresh)
@@ -146,12 +149,12 @@ class RecordStore(object):
             if value:
                 logger.debug("Updating 'value' for {}/{} to {}".format(table, id, value))
                 old_val = self._values[table][id]
-                difference = list(diff(old_val, value, ignore=["version", "last_edited_time", "last_edited_by"]))
+                difference = list(diff(old_val, value, ignore=["version", "last_edited_time", "last_edited_by"], expand=True))
                 self._values[table][id] = value
                 self._save_cache("_values")
                 if old_val and difference:
                     logger.debug("Value changed! Difference: {}".format(difference))
-                    callback_queue.append((table, id, difference))
+                    callback_queue.append((table, id, difference, old_val, value))
 
         # run callbacks outside the mutex to avoid lockups
         for cb in callback_queue:

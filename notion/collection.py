@@ -184,33 +184,61 @@ class CollectionRowBlock(PageBlock):
         
         val = self.get(["properties", prop["id"]])
 
-        if val is None:
-            return None
+        return self._convert_notion_to_python(val, prop)
+
+    def _convert_diff_to_changelist(self, difference, old_val, new_val):
+
+        changed_props = set()
+        changes = []
+        remaining = []
+
+        for d in difference:
+            operation, path, values = d
+            path = path.split(".") if isinstance(path, str) else path
+            if path and path[0] == "properties":
+                if len(path) > 1:
+                    changed_props.add(path[1])
+                else:
+                    for item in values:
+                        changed_props.add(item[0])
+            else:
+                remaining.append(d)
+
+        for prop_id in changed_props:
+            prop = self.collection.get_schema_property(prop_id)
+            old = self._convert_notion_to_python(old_val.get("properties", {}).get(prop_id), prop)
+            new = self._convert_notion_to_python(new_val.get("properties", {}).get(prop_id), prop)
+            changes.append(("prop_changed", prop["slug"], (old, new)))
+
+        return changes + super()._convert_diff_to_changelist(remaining, old_val, new_val)
+
+    def _convert_notion_to_python(self, val, prop):
 
         if prop["type"] in ["title", "text"]:
-            val = notion_to_markdown(val)
+            val = notion_to_markdown(val) if val else ""
         if prop["type"] in ["number"]:
-            val = val[0][0]
-            if "." in val:
-                val = float(val)
-            else:
-                val = int(val)
+            if val is not None:
+                val = val[0][0]
+                if "." in val:
+                    val = float(val)
+                else:
+                    val = int(val)
         if prop["type"] in ["select"]:
-            val = val[0][0]
+            val = val[0][0] if val else None
         if prop["type"] in ["multi_select"]:
-            val = [v.strip() for v in val[0][0].split(",")]
+            val = [v.strip() for v in val[0][0].split(",")] if val else []
         if prop["type"] in ["person"]:
-            val = [self._client.get_user(item[1][0][1]) for item in val if item[0] == "‣"]
+            val = [self._client.get_user(item[1][0][1]) for item in val if item[0] == "‣"] if val else []
         if prop["type"] in ["email", "phone_number", "url"]:
-            val = val[0][0]
+            val = val[0][0] if val else ""
         if prop["type"] in ["date"]:
-            val = val[0][1][0][1]
+            val = val[0][1][0][1] if val else None
         if prop["type"] in ["file"]:
-            val = [add_signed_prefix_as_needed(item[1][0][1]) for item in val if item[0] != ","]
+            val = [add_signed_prefix_as_needed(item[1][0][1]) for item in val if item[0] != ","] if val else []
         if prop["type"] in ["checkbox"]:
-            val = val[0][0] == "Yes"
+            val = val[0][0] == "Yes" if val else False
         if prop["type"] in ["relation"]:
-            val = [self._client.get_block(item[1][0][1]) for item in val if item[0] == "‣"]
+            val = [self._client.get_block(item[1][0][1]) for item in val if item[0] == "‣"] if val else []
         if prop["type"] in ["created_time", "last_edited_time"]:
             val = self.get(prop["type"])
             val = datetime.utcfromtimestamp(val / 1000)
@@ -233,6 +261,12 @@ class CollectionRowBlock(PageBlock):
         if prop is None:
             raise AttributeError("Object does not have property '{}'".format(identifier))
         
+        path, val = self._convert_python_to_notion(val, prop)
+
+        self.set(path, val)
+
+    def _convert_python_to_notion(self, val, prop):
+
         if prop["type"] in ["title", "text"]:
             if not isinstance(val, str):
                 raise TypeError("Value passed to property '{}' must be a string.".format(identifier))
@@ -291,14 +325,12 @@ class CollectionRowBlock(PageBlock):
             val = pagelist[:-1]
         if prop["type"] in ["created_time", "last_edited_time"]:
             val = int(val.timestamp() * 1000)
-            self.set(prop["type"], val)
-            return
+            return prop["type"], val
         if prop["type"] in ["created_by", "last_edited_by"]:
             val = val if isinstance(val, str) else val.id
-            self.set(prop["type"], val)
-            return
+            return prop["type"], val
 
-        self.set(["properties", prop["id"]], val)
+        return ["properties", prop["id"]], val
 
     def remove(self):
         # Mark the block as inactive

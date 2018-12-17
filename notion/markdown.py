@@ -2,7 +2,6 @@ import commonmark
 import re
 
 from commonmark.dump import prepare
-from copy import deepcopy
 
 
 delimiters = {'!', '"', '#', '$', '%', '&', '\'', '(', ')', '*', '+', ',',

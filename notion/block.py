@@ -6,12 +6,14 @@ import requests
 import time
 import uuid
 
+from copy import deepcopy
+
 from .logger import logger
-from .maps import property_map, field_map
+from .maps import property_map, field_map, mapper
 from .operations import build_operation
 from .records import Record
 from .settings import S3_URL_PREFIX, BASE_URL
-from .utils import extract_id, now, get_embed_link, get_embed_data, add_signed_prefix_as_needed, remove_signed_prefix_as_needed
+from .utils import extract_id, now, get_embed_link, get_embed_data, add_signed_prefix_as_needed, remove_signed_prefix_as_needed, get_by_path
 
 
 class Children(object):
@@ -207,6 +209,75 @@ class Block(Record):
     @property
     def is_alias(self):
         return not (self._alias_parent is None)
+
+    def _get_mappers(self):
+        mappers = {}
+        for name in dir(self.__class__):
+            field = getattr(self.__class__, name)
+            if isinstance(field, mapper):
+                mappers[name] = field
+        return mappers
+
+    def _convert_diff_to_changelist(self, difference, old_val, new_val):
+
+        mappers = self._get_mappers()
+        changed_fields = set()
+        changes = []
+        remaining = []
+        content_changed = False
+
+        for d in deepcopy(difference):
+            operation, path, values = d
+
+            # normalize path
+            path = path if path else []
+            path = path.split(".") if isinstance(path, str) else path
+            if operation in ["add", "remove"]:
+                path.append(values[0][0])
+            while isinstance(path[-1], int):
+                path.pop()
+            path = ".".join(map(str, path))
+
+            # check whether it was content that changed
+            if path == "content":
+                content_changed = True
+                continue
+
+            # check whether the value changed matches on of our mapped fields/properties
+            fields = [(name, field) for name, field in mappers.items() if path.startswith(field.path)]
+            if fields:
+                changed_fields.add(fields[0])
+                continue
+
+            remaining.append(d)
+
+        if content_changed:
+
+            old = deepcopy(old_val.get("content", []))
+            new = deepcopy(new_val.get("content", []))
+
+            # track what's been added and removed
+            removed = set(old) - set(new)
+            added = set(new) - set(old)
+            for id in removed:
+                changes.append(("content_removed", "content", id))
+            for id in added:
+                changes.append(("content_added", "content", id))
+
+            # ignore the added/removed items, and see whether order has changed
+            for id in removed:
+                old.remove(id)
+            for id in added:
+                new.remove(id)
+            if old != new:
+                changes.append(("content_reordered", "content", (old, new)))
+
+        for name, field in changed_fields:
+            old = field.api_to_python(get_by_path(field.path, old_val))
+            new = field.api_to_python(get_by_path(field.path, new_val))
+            changes.append(("changed_field", name, (old, new)))
+
+        return changes + super()._convert_diff_to_changelist(remaining, old_val, new_val)
 
     def remove(self, permanently=False):
         """

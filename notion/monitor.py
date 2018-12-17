@@ -9,6 +9,7 @@ from collections import defaultdict
 from inspect import signature
 from requests import HTTPError
 
+from .collection import Collection
 from .logger import logger
 from .records import Record
 
@@ -19,7 +20,6 @@ class Monitor(object):
 
     def __init__(self, client, root_url="https://msgstore.www.notion.so/primus/"):
         self.client = client
-        self.session = requests.Session()
         self.session_id = str(uuid.uuid4())
         self.root_url = root_url
         self._subscriptions = set()
@@ -53,7 +53,7 @@ class Monitor(object):
 
         logger.debug("Initializing new monitoring session.")
 
-        response = self.session.get("{}?sessionId={}&EIO=3&transport=polling".format(self.root_url, self.session_id))
+        response = self.client.session.get("{}?sessionId={}&EIO=3&transport=polling".format(self.root_url, self.session_id))
 
         self.sid = self._decode_numbered_json_thing(response.content)[0]["sid"]
 
@@ -81,12 +81,24 @@ class Monitor(object):
 
                 # add the record to the list of records to restore if we're disconnected
                 self._subscriptions.add(record)
+
+                # subscribe to changes to the record itself
                 sub_data.append({
                     "type": "/api/v1/registerSubscription",
                     "requestId": str(uuid.uuid4()),
                     "key": "versions/{}:{}".format(record.id, record._table),
-                    "version": record.get("version"),
+                    "version": record.get("version", -1),
                 })
+
+                # if it's a collection, subscribe to changes to its children too
+                if isinstance(record, Collection):
+                    sub_data.append({
+                        "type": "/api/v1/registerSubscription",
+                        "requestId": str(uuid.uuid4()),
+                        "key": "collection/{}".format(record.id),
+                        "version": -1,
+                    })
+
 
         data = self._encode_numbered_json_thing(sub_data)
 
@@ -94,14 +106,17 @@ class Monitor(object):
 
     def post_data(self, data):
 
+        if not data:
+            return
+
         logger.debug("Posting monitoring data: {}".format(data))
 
-        self.session.post("{}?sessionId={}&transport=polling&sid={}".format(self.root_url, self.session_id, self.sid), data=data)
+        self.client.session.post("{}?sessionId={}&transport=polling&sid={}".format(self.root_url, self.session_id, self.sid), data=data)
 
     def poll(self, retries=10):
         logger.debug("Starting new long-poll request")
         try:
-            response = self.session.get("{}?sessionId={}&EIO=3&transport=polling&sid={}".format(self.root_url, self.session_id, self.sid))
+            response = self.client.session.get("{}?sessionId={}&EIO=3&transport=polling&sid={}".format(self.root_url, self.session_id, self.sid))
             response.raise_for_status()
         except HTTPError as e:
             try:
@@ -133,18 +148,38 @@ class Monitor(object):
 
             if event.get("type", "") == "notification":
 
-                match = re.match("versions/([^\:]+):(.+)", event.get("key"))
-                if not match:
-                    continue
+                key = event.get("key")
 
-                record_id, record_table = match.groups()
+                if key.startswith("versions/"):
 
-                local_version = self.client._store.get_current_version(record_table, record_id)
-                if event["value"] > local_version:
-                    logger.debug("Record {}/{} has changed; refreshing to update from version {} to version {}".format(record_table, record_id, local_version, event["value"]))
-                    records_to_refresh[record_table].append(record_id)
-                else:
-                    logger.debug("Record {}/{} already at version {}, not trying to update to version {}".format(record_table, record_id, local_version, event["value"]))
+                    match = re.match("versions/([^\:]+):(.+)", key)
+                    if not match:
+                        continue
+
+                    record_id, record_table = match.groups()
+
+                    local_version = self.client._store.get_current_version(record_table, record_id)
+                    if event["value"] > local_version:
+                        logger.debug("Record {}/{} has changed; refreshing to update from version {} to version {}".format(record_table, record_id, local_version, event["value"]))
+                        records_to_refresh[record_table].append(record_id)
+                    else:
+                        logger.debug("Record {}/{} already at version {}, not trying to update to version {}".format(record_table, record_id, local_version, event["value"]))
+
+                if key.startswith("collection/"):
+
+                    match = re.match("collection/(.+)", key)
+                    if not match:
+                        continue
+
+                    collection_id = match.groups()[0]
+
+                    collection = self.client.get_collection(collection_id)
+
+                    row_ids = [row.id for row in collection.get_rows()]
+
+                    logger.debug("Something inside {} has changed; refreshing all {} rows inside it".format(collection, len(row_ids)))
+
+                    records_to_refresh["block"] += row_ids
 
         self.client.refresh_records(**records_to_refresh)
 

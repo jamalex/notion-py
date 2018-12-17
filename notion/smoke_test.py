@@ -65,7 +65,7 @@ def run_live_smoke_test(token_v2, parent_page_url_or_id):
     cvb.title = "My data!"
 
     row = collection.add_row()
-    assert row.person is None
+    assert row.person == []
     row.name = "Just some data"
     row.check_yo_self = True
     row.estimated_value = 42

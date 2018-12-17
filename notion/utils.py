@@ -44,6 +44,8 @@ def get_embed_link(source_url):
 
 
 def add_signed_prefix_as_needed(url):
+    if url is None:
+        return
     if url.startswith(S3_URL_PREFIX):
         return SIGNED_URL_PREFIX + quote_plus(url)
     else:
@@ -51,6 +53,8 @@ def add_signed_prefix_as_needed(url):
 
 
 def remove_signed_prefix_as_needed(url):
+    if url is None:
+        return
     if url.startswith(SIGNED_URL_PREFIX):
         return unquote_plus(url[len(S3_URL_PREFIX):])
     else:
@@ -59,3 +63,22 @@ def remove_signed_prefix_as_needed(url):
 
 def slugify(original):
     return _dash_slugify(original).replace("-", "_")
+
+
+def get_by_path(path, obj, default=None):
+
+    if isinstance(path, str):
+        path = path.split(".")
+
+    value = obj
+
+    # try to traverse down the sequence of keys defined in the path, to get the target value if it exists
+    try:
+        for key in path:
+            if isinstance(value, list):
+                key = int(key)
+            value = value[key]
+    except (KeyError, TypeError, IndexError):
+        value = default
+
+    return value

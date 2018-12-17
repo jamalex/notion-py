@@ -2,6 +2,15 @@ from .logger import logger
 from .markdown import markdown_to_notion, notion_to_markdown
 
 
+class mapper(property):
+
+    def __init__(self, path, python_to_api, api_to_python, *args, **kwargs):
+        self.python_to_api = python_to_api
+        self.api_to_python = api_to_python
+        self.path = ".".join(map(str, path)) if isinstance(path, list) or isinstance(path, tuple) else path
+        super().__init__(*args, **kwargs)
+
+
 def field_map(path, python_to_api=lambda x: x, api_to_python=lambda x: x):
     """
     Returns a property that maps a Block attribute onto a field in the API data structures.
@@ -16,17 +25,16 @@ def field_map(path, python_to_api=lambda x: x, api_to_python=lambda x: x):
       representation to be returned to the Python layer.
     """
 
-    if not isinstance(path, tuple):
-        path = (path,)
+    if isinstance(path, str):
+        path = path.split(".")
 
     def fget(self):
-        return api_to_python(self.get(path[0]))
+        return api_to_python(self.get(path))
 
     def fset(self, value):
-        for p in path:
-            self.set(p, python_to_api(value))
+        self.set(path, python_to_api(value))
 
-    return property(fget=fget, fset=fset)
+    return mapper(fget=fget, fset=fset, path=path, python_to_api=python_to_api, api_to_python=api_to_python)
 
 
 def property_map(name, python_to_api=lambda x: x, api_to_python=lambda x: x, markdown=True):
