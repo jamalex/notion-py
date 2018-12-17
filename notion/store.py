@@ -53,7 +53,7 @@ class Callback(object):
         # perform the callback, gracefully handling any exceptions
         try:
             # trigger the callback within its own thread, so it won't block others if it's long-running
-            threading.Thread(target=callback, kwargs=kwargs, daemon=True).start()
+            threading.Thread(target=self.callback, kwargs=kwargs, daemon=True).start()
         except Exception as e:
             logger.error("Error while processing callback for {}: {}".format(repr(self.record), repr(e)))
 
