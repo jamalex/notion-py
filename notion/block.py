@@ -243,7 +243,7 @@ class Block(Record):
                 content_changed = True
                 continue
 
-            # check whether the value changed matches on of our mapped fields/properties
+            # check whether the value changed matches one of our mapped fields/properties
             fields = [(name, field) for name, field in mappers.items() if path.startswith(field.path)]
             if fields:
                 changed_fields.add(fields[0])

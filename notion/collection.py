@@ -52,9 +52,23 @@ class Collection(Record):
 
         return CollectionRowBlock(self._client, row_id)
 
-    def get_rows(self, search=""):
+    def get_rows(self):
 
-        return self._client.search_pages_with_parent(self.id, search=search)
+        return [self._client.get_block(row_id) for row_id in self._client._store.get_collection_rows(self.id)]
+
+    def _convert_diff_to_changelist(self, difference, old_val, new_val):
+
+        changes = []
+        remaining = []
+
+        for operation, path, values in difference:
+
+            if path == "rows":
+                changes.append((operation, path, values))
+            else:
+                remaining.append((operation, path, values))
+
+        return changes + super()._convert_diff_to_changelist(remaining, old_val, new_val)
 
 
 class CollectionView(Record):

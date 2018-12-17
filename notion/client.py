@@ -111,6 +111,10 @@ class NotionClient(object):
         """
         self._store.call_get_record_values(**kwargs)
 
+    def refresh_collection_rows(self, collection_id):
+        row_ids = self.search_pages_with_parent(collection_id)
+        self._store.set_collection_rows(collection_id, row_ids)
+
     def post(self, endpoint, data):
         """
         All API requests on Notion.so are done as POSTs (except the websocket communications).
@@ -169,7 +173,7 @@ class NotionClient(object):
 
         self._store.store_recordmap(response["recordMap"])
 
-        return [self.get_block(page_id) for page_id in response["results"]]
+        return response["results"]
 
     def create_record(self, table, parent, **kwargs):
 

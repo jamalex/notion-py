@@ -74,6 +74,7 @@ class RecordStore(object):
         self._cache_key = cache_key or str(int(datetime.datetime.now().timestamp() * 1000))
         self._values = defaultdict(lambda: defaultdict(dict))
         self._role = defaultdict(lambda: defaultdict(str))
+        self._collection_row_ids = {}
         self._callbacks = defaultdict(lambda: defaultdict(list))
         self._records_to_refresh = {}
         self._pages_to_refresh = []
@@ -103,14 +104,34 @@ class RecordStore(object):
     def _get_cache_path(self, attribute):
         return str(Path(CACHE_DIR).joinpath("{}{}.json".format(self._cache_key, attribute)))
 
-    def _load_cache(self, attributes=("_values", "_role")):
+    def _load_cache(self, attributes=("_values", "_role", "_collection_row_ids")):
         for attr in attributes:
             try:
                 with open(self._get_cache_path(attr)) as f:
-                    for k, v in json.load(f).items():
-                        getattr(self, attr)[k].update(v)
+                    if attr == "_collection_row_ids":
+                        self._collection_row_ids.update(json.load(f))
+                    else:
+                        for k, v in json.load(f).items():
+                            getattr(self, attr)[k].update(v)
             except FileNotFoundError:
                 pass
+
+    def set_collection_rows(self, collection_id, row_ids):
+
+        if collection_id in self._collection_row_ids:
+            old_ids = set(self._collection_row_ids[collection_id])
+            new_ids = set(row_ids)
+            added = new_ids - old_ids
+            removed = old_ids - new_ids
+            for id in added:
+                self._trigger_callbacks("collection", collection_id, [("row_added", "rows", id)], old_ids, new_ids)
+            for id in removed:
+                self._trigger_callbacks("collection", collection_id, [("row_removed", "rows", id)], old_ids, new_ids)
+        self._collection_row_ids[collection_id] = row_ids
+        self._save_cache("_collection_row_ids")
+
+    def get_collection_rows(self, collection_id):
+        return self._collection_row_ids.get(collection_id, [])
 
     def _save_cache(self, attribute):
         with open(self._get_cache_path(attribute), "w") as f:

@@ -173,11 +173,10 @@ class Monitor(object):
 
                     collection_id = match.groups()[0]
 
-                    collection = self.client.get_collection(collection_id)
+                    self.client.refresh_collection_rows(collection_id)
+                    row_ids = self.client._store.get_collection_rows(collection_id)
 
-                    row_ids = [row.id for row in collection.get_rows()]
-
-                    logger.debug("Something inside {} has changed; refreshing all {} rows inside it".format(collection, len(row_ids)))
+                    logger.debug("Something inside collection {} has changed; refreshing all {} rows inside it".format(collection_id, len(row_ids)))
 
                     records_to_refresh["block"] += row_ids
 
