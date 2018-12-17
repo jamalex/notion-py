@@ -192,36 +192,3 @@ class Monitor(object):
     def poll_forever(self):
         while True:
             self.poll()
-
-    def poll_forever_websocket(self):
-        """
-        An alternative implementation of the watch behavior using websockets. Doesn't seem to be particularly faster.
-        Note: requires installation of the "asyncio" and "websockets" packages.
-        """
-
-        import asyncio
-        import websockets
-
-        async def hello():
-
-            while True:
-                try:
-
-                    self.initialize()
-
-                    headers = [("Cookie", "AWSALB={};".format(self.client.session.cookies.get("AWSALB")))]
-
-                    url = "wss://msgstore.www.notion.so/primus/?sessionId={}&EIO=3&transport=websocket&sid={}".format(self.session_id, self.sid)
-
-                    async with websockets.connect(url, extra_headers=headers) as websocket:
-                        await websocket.send("2probe")
-                        await websocket.recv()
-                        await websocket.send("5")
-                        while True:
-                            event = json.loads(re.match("\d+(.*)", await websocket.recv()).groups()[0])
-                            self._refresh_updated_records([event])
-
-                except websockets.ConnectionClosed:
-                    pass
-
-        asyncio.get_event_loop().run_until_complete(hello())

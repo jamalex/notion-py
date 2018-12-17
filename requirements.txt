@@ -3,6 +3,4 @@ commonmark
 bs4
 tzlocal
 python-slugify
-# asyncio
-# websockets
 dictdiffer
