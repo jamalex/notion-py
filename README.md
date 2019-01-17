@@ -4,9 +4,9 @@ Unofficial Python 3 client for Notion.so API v3
 
 Warning: This is still somewhat experimental, and doesn't have 100% API coverage. Issues and pull requests welcome!
 
-# Quick plug! Learning Equality is hiring!
+# _Quick plug: Learning Equality is hiring!_
 
-We're a small nonprofit with global impact, building exciting tech! We're currently hiring [engineers](https://grnh.se/1edb335f1) and [other roles](https://grnh.se/2dd2be551) -- come join us!
+We're a [small nonprofit](https://learningequality.org/) with [global impact](https://learningequality.org/ka-lite/map/), building [exciting tech](https://learningequality.org/kolibri/)! We're currently hiring [engineers](https://grnh.se/1edb335f1) and [other roles](https://grnh.se/2dd2be551) -- come join us!
 
 # Usage
 
