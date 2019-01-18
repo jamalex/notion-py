@@ -123,8 +123,8 @@ cv = client.get_collection_view("https://www.notion.so/myorg/8511b9fc522249f79b9
 for row in cv.collection.get_rows(search="Bob"):
     print("We estimate the value of '{}' at {}".format(row.name, row.estimated_value))
 
-# Add a record
-row.collection.add_row()
+# Add a new record
+row = cv.collection.add_row()
 row.name = "Just some data"
 row.is_confirmed = True
 row.estimated_value = 399

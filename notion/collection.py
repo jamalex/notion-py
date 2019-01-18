@@ -335,7 +335,7 @@ class CollectionRowBlock(PageBlock):
             for page in val:
                 if isinstance(page, str):
                     page = self._client.get_block(page)
-                pagelist += [['‣', [['p', page_id]]], [',']]
+                pagelist += [['‣', [['p', page.id]]], [',']]
             val = pagelist[:-1]
         if prop["type"] in ["created_time", "last_edited_time"]:
             val = int(val.timestamp() * 1000)
