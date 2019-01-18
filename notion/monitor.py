@@ -191,4 +191,9 @@ class Monitor(object):
 
     def poll_forever(self):
         while True:
-            self.poll()
+            try:
+                self.poll()
+            except Exception as e:
+                logger.error("Encountered error during polling!")
+                logger.error(e, exc_info=True)
+                time.sleep(1)

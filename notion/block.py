@@ -6,6 +6,7 @@ import requests
 import time
 import uuid
 
+from cached_property import cached_property
 from copy import deepcopy
 
 from .logger import logger
@@ -608,7 +609,7 @@ class CollectionViewBlock(MediaBlock):
 
     _type = "collection_view"
 
-    @property
+    @cached_property
     def collection(self):
         collection_id = self.get("collection_id")
         if not collection_id:
