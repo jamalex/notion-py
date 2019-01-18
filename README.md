@@ -4,6 +4,10 @@ Unofficial Python 3 client for Notion.so API v3
 
 Warning: This is still somewhat experimental, and doesn't have 100% API coverage. Issues and pull requests welcome!
 
+## _Quick plug: Learning Equality is hiring!_
+
+We're a [small nonprofit](https://learningequality.org/) with [global impact](https://learningequality.org/ka-lite/map/), building [exciting tech](https://learningequality.org/kolibri/)! We're currently hiring [engineers](https://grnh.se/1edb335f1) and [other roles](https://grnh.se/2dd2be551) -- come join us!
+
 # Usage
 
 ## Quickstart
@@ -119,8 +123,8 @@ cv = client.get_collection_view("https://www.notion.so/myorg/8511b9fc522249f79b9
 for row in cv.collection.get_rows(search="Bob"):
     print("We estimate the value of '{}' at {}".format(row.name, row.estimated_value))
 
-# Add a record
-row.collection.add_row()
+# Add a new record
+row = cv.collection.add_row()
 row.name = "Just some data"
 row.is_confirmed = True
 row.estimated_value = 399
