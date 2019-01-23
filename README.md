@@ -6,6 +6,7 @@ Unofficial Python 3 client for Notion.so API v3.
 - Automatic conversion between internal Notion formats and appropriate Python objects
 - Local cache of data in a unified data store
 - Real-time reactive two-way data binding (changing Python object -> live updating of Notion UI, and vice-versa)
+- Callback system for responding to changes in Notion (e.g. for triggering actions, updating another API, etc)
 
 ![](https://raw.githubusercontent.com/jamalex/notion-py/master/ezgif-3-a935fdcb7415.gif)
 
