@@ -113,7 +113,7 @@ class RecordStore(object):
                     else:
                         for k, v in json.load(f).items():
                             getattr(self, attr)[k].update(v)
-            except FileNotFoundError:
+            except (FileNotFoundError, json.JSONDecodeError):
                 pass
 
     def set_collection_rows(self, collection_id, row_ids):

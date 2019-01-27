@@ -6,7 +6,7 @@ from urllib.parse import urlparse, parse_qs, quote_plus, unquote_plus
 from datetime import datetime
 from slugify import slugify as _dash_slugify
 
-from .settings import BASE_URL, SIGNED_URL_PREFIX, S3_URL_PREFIX
+from .settings import BASE_URL, SIGNED_URL_PREFIX, S3_URL_PREFIX, S3_URL_PREFIX_ENCODED
 
 
 def now():
@@ -43,13 +43,17 @@ def get_embed_link(source_url):
     return parse_qs(urlparse(url).query)["src"][0]
 
 
-def add_signed_prefix_as_needed(url):
+def add_signed_prefix_as_needed(url, client=None):
+
     if url is None:
         return
+
     if url.startswith(S3_URL_PREFIX):
-        return SIGNED_URL_PREFIX + quote_plus(url)
-    else:
-        return url
+        url = SIGNED_URL_PREFIX + quote_plus(url)
+        if client:
+            url = client.session.head(url).headers.get("Location")
+
+    return url
 
 
 def remove_signed_prefix_as_needed(url):
@@ -57,6 +61,9 @@ def remove_signed_prefix_as_needed(url):
         return
     if url.startswith(SIGNED_URL_PREFIX):
         return unquote_plus(url[len(S3_URL_PREFIX):])
+    elif url.startswith(S3_URL_PREFIX_ENCODED):
+        parsed = urlparse(url.replace(S3_URL_PREFIX_ENCODED, S3_URL_PREFIX))
+        return "{}://{}{}".format(parsed.scheme, parsed.netloc, parsed.path)
     else:
         return url
 

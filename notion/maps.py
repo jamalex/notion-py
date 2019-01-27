@@ -1,6 +1,7 @@
+from inspect import signature
+
 from .logger import logger
 from .markdown import markdown_to_notion, notion_to_markdown
-
 
 class mapper(property):
 
@@ -29,10 +30,16 @@ def field_map(path, python_to_api=lambda x: x, api_to_python=lambda x: x):
         path = path.split(".")
 
     def fget(self):
-        return api_to_python(self.get(path))
+        kwargs = {}
+        if "client" in signature(api_to_python).parameters:
+            kwargs["client"] = self._client
+        return api_to_python(self.get(path), **kwargs)
 
     def fset(self, value):
-        self.set(path, python_to_api(value))
+        kwargs = {}
+        if "client" in signature(python_to_api).parameters:
+            kwargs["client"] = self._client
+        self.set(path, python_to_api(value), **kwargs)
 
     return mapper(fget=fget, fset=fset, path=path, python_to_api=python_to_api, api_to_python=api_to_python)
 

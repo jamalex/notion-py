@@ -334,7 +334,7 @@ class CollectionRowBlock(PageBlock):
         if prop["type"] in ["date"]:
             val = NotionDate.from_notion(val)
         if prop["type"] in ["file"]:
-            val = [add_signed_prefix_as_needed(item[1][0][1]) for item in val if item[0] != ","] if val else []
+            val = [add_signed_prefix_as_needed(item[1][0][1], client=self._client) for item in val if item[0] != ","] if val else []
         if prop["type"] in ["checkbox"]:
             val = val[0][0] == "Yes" if val else False
         if prop["type"] in ["relation"]:

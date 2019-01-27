@@ -516,16 +516,16 @@ class EmbedBlock(MediaBlock):
 
     _type = "embed"
 
-    display_source = field_map("format.display_source")
-    source = property_map("source")
+    display_source = field_map("format.display_source", api_to_python=add_signed_prefix_as_needed, python_to_api=remove_signed_prefix_as_needed)
+    source = property_map("source", api_to_python=add_signed_prefix_as_needed, python_to_api=remove_signed_prefix_as_needed)
     height = field_map("format.block_height")
     full_width = field_map("format.block_full_width")
     page_width = field_map("format.block_page_width")
     width = field_map("format.block_width")
 
     def set_source_url(self, url):
-        self.source = url
-        self.display_source = get_embed_link(url)
+        self.source = remove_signed_prefix_as_needed(url)
+        self.display_source = get_embed_link(self.source)
 
     def _str_fields(self):
         return super()._str_fields() + ["source"]
