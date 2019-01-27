@@ -1,12 +1,16 @@
 # notion-py
 
-Unofficial Python 3 client for Notion.so API v3
+Unofficial Python 3 client for Notion.so API v3.
 
-Warning: This is still somewhat experimental, and doesn't have 100% API coverage. Issues and pull requests welcome!
+- Object-oriented interface (mapping database tables to Python classes/attributes)
+- Automatic conversion between internal Notion formats and appropriate Python objects
+- Local cache of data in a unified data store
+- Real-time reactive two-way data binding (changing Python object -> live updating of Notion UI, and vice-versa)
+- Callback system for responding to changes in Notion (e.g. for triggering actions, updating another API, etc)
 
-## _Quick plug: Learning Equality is hiring!_
+![](https://raw.githubusercontent.com/jamalex/notion-py/master/ezgif-3-a935fdcb7415.gif)
 
-We're a [small nonprofit](https://learningequality.org/) with [global impact](https://learningequality.org/ka-lite/map/), building [exciting tech](https://learningequality.org/kolibri/)! We're currently hiring [engineers](https://grnh.se/1edb335f1) and [other roles](https://grnh.se/2dd2be551) -- come join us!
+[Read more about Notion and Notion-py on Jamie's blog](https://medium.com/@jamiealexandre/introducing-notion-py-an-unofficial-python-api-wrapper-for-notion-so-603700f92369)
 
 # Usage
 
@@ -168,6 +172,10 @@ print("Sorted results, showing most valuable first:", result)
 Note: You can combine `filter`, `aggregate`, and `sort`. See more examples of queries by setting up complex views in Notion, and then inspecting `cv.get("query")`
 
 You can also see [more examples in action in the smoke test runner](https://github.com/jamalex/notion-py/blob/master/notion/smoke_test.py).
+
+# _Quick plug: Learning Equality is hiring!_
+
+We're a [small nonprofit](https://learningequality.org/) with [global impact](https://learningequality.org/ka-lite/map/), building [exciting tech](https://learningequality.org/kolibri/)! We're currently hiring [engineers](https://grnh.se/1edb335f1) and [other roles](https://grnh.se/2dd2be551) -- come join us!
 
 # TODO
 
