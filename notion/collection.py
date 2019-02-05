@@ -140,7 +140,12 @@ class Collection(Record):
         return row
 
     def get_rows(self):
-        return [self._client.get_block(row_id) for row_id in self._client._store.get_collection_rows(self.id)]
+        rows = []
+        for row_id in self._client._store.get_collection_rows(self.id):
+            row = self._client.get_block(row_id)
+            row.__dict__['collection'] = self
+            rows.append(row)
+        return rows
 
     def _convert_diff_to_changelist(self, difference, old_val, new_val):
 
