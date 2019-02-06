@@ -202,6 +202,10 @@ class CalendarView(CollectionView):
 
     _type = "calendar"
 
+    def build_query(self, **kwargs):
+        calendar_by = self._client.get_record_data("collection_view", self._id)['query']['calendar_by']
+        return super().build_query(calendar_by=calendar_by, **kwargs)
+
 
 class GalleryView(CollectionView):
 
@@ -468,7 +472,9 @@ class QueryResult(object):
         return result["blockIds"]
 
     def _get_block(self, id):
-        return CollectionRowBlock(self._client, id)
+        block = CollectionRowBlock(self._client, id)
+        block.__dict__['collection'] = self.collection
+        return block
 
     def get_aggregate(self, id):
         for agg in self.aggregates:

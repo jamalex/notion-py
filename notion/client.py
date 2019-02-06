@@ -102,7 +102,7 @@ class NotionClient(object):
             assert collection is not None, "If 'url_or_id' is an ID (not a URL), you must also pass the 'collection'"
 
         view = self.get_record_data("collection_view", view_id, force_refresh=force_refresh)
-
+        
         return COLLECTION_VIEW_TYPES.get(view.get("type", ""), CollectionView)(self, view_id, collection=collection) if view else None
 
     def refresh_records(self, **kwargs):
