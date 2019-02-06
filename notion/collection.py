@@ -43,7 +43,7 @@ class NotionDate(object):
         if time_str:
             return datetime.strptime(date_str + " " + time_str, '%Y-%m-%d %H:%M')
         else:
-            return date.strptime(date_str, '%Y-%m-%d')
+            return datetime.strptime(date_str, '%Y-%m-%d').date()
 
     def _format_datetime(self, date_or_datetime):
         if not date_or_datetime:
