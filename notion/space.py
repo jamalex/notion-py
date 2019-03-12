@@ -17,6 +17,7 @@ class Space(Record):
     def pages(self):
         # The page list includes pages the current user might not have permissions on, so it's slow to query.
         # Instead, we just filter for pages with the space as the parent.
+        # TODO: this function does no longer exist
         return self._client.search_pages_with_parent(self.id)
 
     @property

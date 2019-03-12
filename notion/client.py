@@ -113,7 +113,9 @@ class NotionClient(object):
         self._store.call_get_record_values(**kwargs)
 
     def refresh_collection_rows(self, collection_id):
-        row_ids = self.search_pages_with_parent(collection_id)
+        parent_id = self.get_record_data('collection', collection_id)['parent_id']
+        view_id = self.get_record_data('block', parent_id)['view_ids'][0]
+        row_ids = self.query_collection(collection_id, view_id)['blockIds']
         self._store.set_collection_rows(collection_id, row_ids)
 
     def post(self, endpoint, data):
@@ -165,16 +167,6 @@ class NotionClient(object):
         Returns True if we're currently in a transaction, otherwise False.
         """
         return hasattr(self, "_transaction_operations")
-
-    def search_pages_with_parent(self, parent_id, search=""):
-
-        data = {"query": search, "parentId": parent_id, "limit": 10000}
-
-        response = self.post("searchPagesWithParent", data).json()
-
-        self._store.store_recordmap(response["recordMap"])
-
-        return response["results"]
 
     def create_record(self, table, parent, **kwargs):
 

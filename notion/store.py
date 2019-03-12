@@ -257,13 +257,13 @@ class RecordStore(object):
                 "type": type,
             },
             "query": {
-            "aggregate": aggregate,
-            "filter": filter,
-            "filter_operator": filter_operator,
-            "sort": sort,
+                "aggregate": aggregate,
+                "filter": filter,
+                "filter_operator": filter_operator,
+                "sort": sort,
             }
         }
-
+        
         response = self._client.post("queryCollection", data).json()
 
         self.store_recordmap(response["recordMap"])
