@@ -35,6 +35,8 @@ class NotionClient(object):
             self._monitor = Monitor(self)
             if start_monitoring:
                 self.start_monitoring()
+        else:
+            self._monitor = None
         self._update_user_info()
 
     def start_monitoring(self):
