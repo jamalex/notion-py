@@ -101,7 +101,7 @@ class Collection(Record):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self._collection_rows_refreshed = False
+        self._client.refresh_collection_rows(self.id)
 
     def get_schema_properties(self):
         """
@@ -140,10 +140,6 @@ class Collection(Record):
         return row
 
     def get_rows(self):
-        if not self._collection_rows_refreshed:
-            self._client.refresh_collection_rows(self.id)
-            self._collection_rows_refreshed = True
-        
         rows = []
         for row_id in self._client._store.get_collection_rows(self.id):
             row = self._client.get_block(row_id)
