@@ -169,13 +169,9 @@ class NotionClient(object):
         return hasattr(self, "_transaction_operations")
 
     def search_pages_with_parent(self, parent_id, search=""):
-
-        data = {"query": search, "parentId": parent_id, "limit": 10000}
-
+        data = {"query": search, "parentId": parent_id, "limit": 10000, "spaceId": self.current_space.id}
         response = self.post("searchPagesWithParent", data).json()
-
         self._store.store_recordmap(response["recordMap"])
-
         return response["results"]
 
     def create_record(self, table, parent, **kwargs):
