@@ -135,7 +135,7 @@ class Collection(Record):
 
         with self._client.as_atomic_transaction():
             for key, val in kwargs.items():
-                setattr(key, val)
+                setattr(row, key, val)
 
         return row
 
