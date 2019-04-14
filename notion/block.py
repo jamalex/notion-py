@@ -464,6 +464,11 @@ class SubheaderBlock(BasicBlock):
     _type = "sub_header"
 
 
+class SubsubheaderBlock(BasicBlock):
+
+    _type = "sub_sub_header"
+
+
 class PageBlock(BasicBlock):
 
     _type = "page"
