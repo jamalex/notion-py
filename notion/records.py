@@ -14,7 +14,7 @@ class Record(object):
         self._client = client
         self._id = extract_id(id)
         self._callbacks = []
-        if hasattr(self._client, "_monitor"):
+        if self._client._monitor is not None:
             self._client._monitor.subscribe(self)
 
     @property

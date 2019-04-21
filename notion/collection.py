@@ -140,7 +140,12 @@ class Collection(Record):
         return row
 
     def get_rows(self):
-        return [self._client.get_block(row_id) for row_id in self._client._store.get_collection_rows(self.id)]
+        rows = []
+        for row_id in self._client._store.get_collection_rows(self.id):
+            row = self._client.get_block(row_id)
+            row.__dict__['collection'] = self
+            rows.append(row)
+        return rows
 
     def _convert_diff_to_changelist(self, difference, old_val, new_val):
 
@@ -196,6 +201,10 @@ class ListView(CollectionView):
 class CalendarView(CollectionView):
 
     _type = "calendar"
+
+    def build_query(self, **kwargs):
+        calendar_by = self._client.get_record_data("collection_view", self._id)['query']['calendar_by']
+        return super().build_query(calendar_by=calendar_by, **kwargs)
 
 
 class GalleryView(CollectionView):
@@ -463,7 +472,9 @@ class QueryResult(object):
         return result["blockIds"]
 
     def _get_block(self, id):
-        return CollectionRowBlock(self._client, id)
+        block = CollectionRowBlock(self._client, id)
+        block.__dict__['collection'] = self.collection
+        return block
 
     def get_aggregate(self, id):
         for agg in self.aggregates:
