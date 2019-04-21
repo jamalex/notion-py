@@ -57,6 +57,8 @@ print("Parent of {} is {}".format(page.id, page.parent.id))
 ## Example: Adding a new node
 
 ```Python
+from notion.block import TodoBlock
+
 newchild = page.children.add_new(TodoBlock, title="Something to get done")
 newchild.checked = True
 ```
@@ -74,6 +76,8 @@ page.remove(permanently=True)
 ## Example: Create an embedded content type (iframe, video, etc)
 
 ```Python
+from notion.block import VideoBlock
+
 video = page.children.add_new(VideoBlock, width=200)
 # sets "property.source" to the URL, and "format.display_source" to the embedly-converted URL
 video.set_source_url("https://www.youtube.com/watch?v=oHg5SJYRHA0")
