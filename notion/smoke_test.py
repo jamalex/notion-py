@@ -73,6 +73,10 @@ def run_live_smoke_test(token_v2, parent_page_url_or_id):
     row.person = client.current_user
     row.tags = ["A", "C"]
     row.where_to = "https://learningequality.org"
+    row.category = "A"
+    row.category = ""
+    row.category = None
+    row.category = "B"
 
     # Run a filtered/sorted query using the view's default parameters
     result = view.default_query().execute()
@@ -148,6 +152,22 @@ def get_collection_schema():
             }, {
                 "color": "blue",
                 "id": "77f431ab-aeb2-48c2-9e40-3a630fb86a5b",
+                "value": "C"
+            }]},
+        "=d{q": {
+            "name": "Category",
+            "type": "select",
+            "options": [{
+                "color": "orange",
+                "id": "59560dab-c776-43d1-9420-27f4011fcaec",
+                "value": "A"
+            }, {
+                "color": "default",
+                "id": "502c7016-ac57-413a-90a6-64afadfb0c44",
+                "value": "B"
+            }, {
+                "color": "blue",
+                "id": "57f431ab-aeb2-48c2-9e40-3a630fb86a5b",
                 "value": "C"
             }]},
         "LL[(": {"name": "Person", "type": "person"},
