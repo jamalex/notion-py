@@ -370,11 +370,11 @@ class CollectionRowBlock(PageBlock):
         if prop is None:
             raise AttributeError("Object does not have property '{}'".format(identifier))
 
-        path, val = self._convert_python_to_notion(val, prop)
+        path, val = self._convert_python_to_notion(val, prop, identifier=identifier)
 
         self.set(path, val)
 
-    def _convert_python_to_notion(self, val, prop):
+    def _convert_python_to_notion(self, val, prop, identifier="<unknown>"):
 
         if prop["type"] in ["title", "text"]:
             if not isinstance(val, str):
@@ -385,12 +385,15 @@ class CollectionRowBlock(PageBlock):
                 raise TypeError("Value passed to property '{}' must be an int or float.".format(identifier))
             val = [[str(val)]]
         if prop["type"] in ["select"]:
-            valid_options = [p["value"].lower() for p in prop["options"]]
-            val = val.split(",")[0]
-            if val.lower() not in valid_options:
-                raise ValueError("Value '{}' not acceptable for property '{}' (valid options: {})"
-                                 .format(val, identifier, valid_options))
-            val = [[val]]
+            if not val:
+                val = None
+            else:
+                valid_options = [p["value"].lower() for p in prop["options"]]
+                val = val.split(",")[0]
+                if val.lower() not in valid_options:
+                    raise ValueError("Value '{}' not acceptable for property '{}' (valid options: {})"
+                                     .format(val, identifier, valid_options))
+                val = [[val]]
         if prop["type"] in ["multi_select"]:
             valid_options = [p["value"].lower() for p in prop["options"]]
             if not isinstance(val, list):
