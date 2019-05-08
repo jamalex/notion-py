@@ -85,6 +85,7 @@ class RecordStore(object):
         return self._values[table].get(id, Missing)
 
     def add_callback(self, record, callback, callback_id=None, extra_kwargs={}):
+        assert callable(callback), "The callback must be a 'callable' object, such as a function."
         self.remove_callbacks(record._table, record.id, callback_id)
         callback_obj = Callback(callback, record, callback_id=callback_id, extra_kwargs=extra_kwargs)
         self._callbacks[record._table][record.id].append(callback_obj)

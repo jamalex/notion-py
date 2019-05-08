@@ -55,6 +55,7 @@ class Record(object):
         return [("changed_value", path, (get_by_path(path, old_val), get_by_path(path, new_val))) for path in changed_values]
 
     def add_callback(self, callback, callback_id=None, extra_kwargs={}):
+        assert callable(callback), "The callback must be a 'callable' object, such as a function."
         callback_obj = self._client._store.add_callback(self, callback, callback_id=callback_id, extra_kwargs=extra_kwargs)
         self._callbacks.append(callback_obj)
         return callback_obj
