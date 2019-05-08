@@ -236,7 +236,7 @@ class RecordStore(object):
             for id, record in records.items():
                 self._update_record(table, id, value=record.get("value"), role=record.get("role"))
 
-    def call_query_collection(self, collection_id, collection_view_id, search="", type="table", aggregate=[], filter=[], filter_operator="and", sort=[], calendar_by=""):
+    def call_query_collection(self, collection_id, collection_view_id, search="", type="table", aggregate=[], filter=[], filter_operator="and", sort=[], calendar_by="", group_by=""):
 
         # convert singletons into lists if needed
         if isinstance(aggregate, dict):
