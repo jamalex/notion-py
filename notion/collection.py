@@ -252,7 +252,7 @@ class CollectionQuery(object):
             aggregate=self.aggregate,
             filter=self.filter,
             filter_operator=self.filter_operator,
-            sort=[],
+            sort=self.sort,
             calendar_by=self.calendar_by,
         ))
 
