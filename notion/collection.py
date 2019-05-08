@@ -212,23 +212,32 @@ class GalleryView(CollectionView):
     _type = "gallery"
 
 
+def _normalize_property_name(prop_name, collection):
+    if not prop_name:
+        return ""
+    else:
+        prop = collection.get_schema_property(prop_name)
+        if not prop:
+            return ""
+        return prop["id"]
+
+
 def _normalize_query_list(query_list, collection):
     query_list = deepcopy(query_list)
     for item in query_list:
         # convert slugs to property ids
         if "property" in item:
-            prop = collection.get_schema_property(item["property"])
-            if prop:
-                item["property"] = prop["id"]
+            item["property"] = _normalize_property_name(item["property"], collection)
         # convert any instantiated objects into their ids
         if "value" in item:
             if hasattr(item["value"], "id"):
                 item["value"] = item["value"].id
     return query_list
 
+
 class CollectionQuery(object):
 
-    def __init__(self, collection, collection_view, search="", type="table", aggregate=[], filter=[], filter_operator="and", sort=[], calendar_by=""):
+    def __init__(self, collection, collection_view, search="", type="table", aggregate=[], filter=[], filter_operator="and", sort=[], calendar_by="", group_by=""):
         self.collection = collection
         self.collection_view = collection_view
         self.search = search
@@ -237,7 +246,8 @@ class CollectionQuery(object):
         self.filter = _normalize_query_list(filter, collection)
         self.filter_operator = filter_operator
         self.sort = _normalize_query_list(sort, collection)
-        self.calendar_by = calendar_by
+        self.calendar_by = _normalize_property_name(calendar_by, collection)
+        self.group_by = _normalize_property_name(group_by, collection)
         self._client = collection._client
 
     def execute(self):
@@ -252,8 +262,9 @@ class CollectionQuery(object):
             aggregate=self.aggregate,
             filter=self.filter,
             filter_operator=self.filter_operator,
-            sort=[],
+            sort=self.sort,
             calendar_by=self.calendar_by,
+            group_by=self.group_by,
         ))
 
 
@@ -360,7 +371,7 @@ class CollectionRowBlock(PageBlock):
     def get_all_properties(self):
         allprops = {}
         for prop in self.schema:
-            propid = prop["name"].lower().replace(" ", "_")
+            propid = slugify(prop["name"])
             allprops[propid] = self.get_property(propid)
         return allprops
 

@@ -85,6 +85,7 @@ class RecordStore(object):
         return self._values[table].get(id, Missing)
 
     def add_callback(self, record, callback, callback_id=None, extra_kwargs={}):
+        assert callable(callback), "The callback must be a 'callable' object, such as a function."
         self.remove_callbacks(record._table, record.id, callback_id)
         callback_obj = Callback(callback, record, callback_id=callback_id, extra_kwargs=extra_kwargs)
         self._callbacks[record._table][record.id].append(callback_obj)
@@ -235,7 +236,7 @@ class RecordStore(object):
             for id, record in records.items():
                 self._update_record(table, id, value=record.get("value"), role=record.get("role"))
 
-    def call_query_collection(self, collection_id, collection_view_id, search="", type="table", aggregate=[], filter=[], filter_operator="and", sort=[], calendar_by=""):
+    def call_query_collection(self, collection_id, collection_view_id, search="", type="table", aggregate=[], filter=[], filter_operator="and", sort=[], calendar_by="", group_by=""):
 
         # convert singletons into lists if needed
         if isinstance(aggregate, dict):
