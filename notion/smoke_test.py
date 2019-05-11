@@ -67,10 +67,15 @@ def run_live_smoke_test(token_v2, parent_page_url_or_id):
     row = collection.add_row()
     assert row.person == []
     row.name = "Just some data"
+    row.title = "Can reference 'title' field too!"
+    assert row.name == row.title
     row.check_yo_self = True
+    row.estimated_value = None
     row.estimated_value = 42
     row.files = ["https://www.birdlife.org/sites/default/files/styles/1600/public/slide.jpg"]
     row.person = client.current_user
+    row.tags = None
+    row.tags = []
     row.tags = ["A", "C"]
     row.where_to = "https://learningequality.org"
     row.category = "A"

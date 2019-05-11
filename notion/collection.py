@@ -123,6 +123,8 @@ class Collection(Record):
         for prop in self.get_schema_properties():
             if identifier == prop["id"] or slugify(identifier) == prop["slug"]:
                 return prop
+            if identifier == "title" and prop["type"] == "title":
+                return prop
         return None
 
     def add_row(self, **kwargs):
@@ -291,7 +293,10 @@ class CollectionRowBlock(PageBlock):
             raise AttributeError("Unknown property: '{}'".format(attname))
 
     def _get_property_slugs(self):
-        return [prop["slug"] for prop in self.schema]
+        slugs = [prop["slug"] for prop in self.schema]
+        if "title" not in slugs:
+            slugs.append("title")
+        return slugs
 
     def __dir__(self):
         return self._get_property_slugs() + super().__dir__()
@@ -388,13 +393,16 @@ class CollectionRowBlock(PageBlock):
     def _convert_python_to_notion(self, val, prop, identifier="<unknown>"):
 
         if prop["type"] in ["title", "text"]:
+            if not val:
+                val = ""
             if not isinstance(val, str):
                 raise TypeError("Value passed to property '{}' must be a string.".format(identifier))
             val = markdown_to_notion(val)
         if prop["type"] in ["number"]:
-            if not isinstance(val, float) and not isinstance(val, int):
-                raise TypeError("Value passed to property '{}' must be an int or float.".format(identifier))
-            val = [[str(val)]]
+            if val is not None:
+                if not isinstance(val, float) and not isinstance(val, int):
+                    raise TypeError("Value passed to property '{}' must be an int or float.".format(identifier))
+                val = [[str(val)]]
         if prop["type"] in ["select"]:
             if not val:
                 val = None
@@ -406,6 +414,8 @@ class CollectionRowBlock(PageBlock):
                                      .format(val, identifier, valid_options))
                 val = [[val]]
         if prop["type"] in ["multi_select"]:
+            if not val:
+                val = []
             valid_options = [p["value"].lower() for p in prop["options"]]
             if not isinstance(val, list):
                 val = [val]
