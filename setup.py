@@ -13,7 +13,7 @@ install_requires = [str(ir.req) for ir in reqs]
 
 setuptools.setup(
     name="notion",
-    version="0.0.22",
+    version="0.0.23",
     author="Jamie Alexandre",
     author_email="jamalex+python@gmail.com",
     description="Unofficial Python API client for Notion.so",
@@ -23,7 +23,7 @@ setuptools.setup(
     install_requires=install_requires,
     include_package_data=True,
     packages=setuptools.find_packages(),
-    python_requires='>=3.4',
+    python_requires='>=3.5',
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: MIT License",
