@@ -16,6 +16,8 @@ Unofficial Python 3 client for Notion.so API v3.
 
 ## Quickstart
 
+**notion-py** requires Python 3.5 or greater.
+
 `pip install notion`
 
 ```Python
