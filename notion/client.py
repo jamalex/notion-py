@@ -8,7 +8,7 @@ from requests.cookies import cookiejar_from_dict
 from urllib.parse import urljoin
 
 from .block import Block, BLOCK_TYPES
-from .collection import Collection, CollectionView, CollectionRowBlock, COLLECTION_VIEW_TYPES
+from .collection import Collection, CollectionView, CollectionRowBlock, COLLECTION_VIEW_TYPES, TemplateBlock
 from .logger import logger
 from .monitor import Monitor
 from .operations import operation_update_last_edited, build_operation
@@ -60,7 +60,10 @@ class NotionClient(object):
         if not block:
             return None
         if block.get("parent_table") == "collection":
-            block_class = CollectionRowBlock
+            if block.get("is_template"):
+                block_class = TemplateBlock
+            else:
+                block_class = CollectionRowBlock
         else:
             block_class = BLOCK_TYPES.get(block.get("type", ""), Block)
         return block_class(self, block_id)
@@ -179,6 +182,8 @@ class NotionClient(object):
         # make up a new UUID; apparently we get to choose our own!
         record_id = str(uuid.uuid4())
 
+        child_list_key = kwargs.get("child_list_key") or parent.child_list_key
+
         args={
             "id": record_id,
             "version": 1,
@@ -205,11 +210,11 @@ class NotionClient(object):
             )
 
             # add the record to the content list of the parent, if needed
-            if parent.child_list_key:
+            if child_list_key:
                 self.submit_transaction(
                     build_operation(
                         id=parent.id,
-                        path=[parent.child_list_key],
+                        path=[child_list_key],
                         args={"id": record_id},
                         command="listAfter",
                         table=parent._table,

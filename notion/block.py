@@ -95,7 +95,7 @@ class Children(object):
             return False
         return item_id in self._content_list()
 
-    def add_new(self, block_type, **kwargs):
+    def add_new(self, block_type, child_list_key=None, **kwargs):
         """
         Create a new block, add it as the last child of this parent block, and return the corresponding Block instance.
         `block_type` can be either a type string, or a Block subclass.
@@ -107,7 +107,7 @@ class Children(object):
         elif not isinstance(block_type, str):
             raise Exception("block_type must be a string or a Block subclass with a _type attribute")
 
-        block_id = self._client.create_record(table="block", parent=self._parent, type=block_type)
+        block_id = self._client.create_record(table="block", parent=self._parent, type=block_type, child_list_key=child_list_key)
 
         block = self._get_block(block_id)
 

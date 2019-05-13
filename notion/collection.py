@@ -3,7 +3,7 @@ from copy import deepcopy
 from datetime import datetime, date
 from tzlocal import get_localzone
 
-from .block import Block, PageBlock
+from .block import Block, PageBlock, Children
 from .logger import logger
 from .maps import property_map, field_map
 from .markdown import markdown_to_notion, notion_to_markdown
@@ -102,6 +102,14 @@ class Collection(Record):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._client.refresh_collection_rows(self.id)
+
+    @property
+    def templates(self):
+        if not hasattr(self, "_templates"):
+            template_ids = self.get("template_pages", [])
+            self._client.refresh_records(block=template_ids)
+            self._templates = Templates(parent=self)
+        return self._templates
 
     def get_schema_properties(self):
         """
@@ -272,6 +280,10 @@ class CollectionQuery(object):
 
 class CollectionRowBlock(PageBlock):
 
+    @property
+    def is_template(self):
+        return self.get("is_template")
+
     @cached_property
     def collection(self):
         return self._client.get_collection(self.get("parent_id"))
@@ -289,6 +301,8 @@ class CollectionRowBlock(PageBlock):
             super().__setattr__(attname, value)
         elif attname in self._get_property_slugs():
             self.set_property(attname, value)
+        elif hasattr(self, attname):
+            super().__setattr__(attname, value)
         else:
             raise AttributeError("Unknown property: '{}'".format(attname))
 
@@ -482,6 +496,34 @@ class CollectionRowBlock(PageBlock):
                 command="update",
             )
         )
+
+
+class TemplateBlock(CollectionRowBlock):
+
+    @property
+    def is_template(self):
+        return self.get("is_template")
+
+    @is_template.setter
+    def is_template(self, val):
+        assert val is True, "Templates must have 'is_template' set to True."
+        self.set("is_template", True)
+
+
+class Templates(Children):
+
+    child_list_key = "template_pages"
+
+    def _content_list(self):
+        return self._parent.get(self.child_list_key) or []
+
+    def add_new(self, **kwargs):
+
+        kwargs["block_type"] = "page"
+        kwargs["child_list_key"] = self.child_list_key
+        kwargs["is_template"] = True
+
+        return super().add_new(**kwargs)
 
 
 class QueryResult(object):
