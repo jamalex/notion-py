@@ -145,7 +145,7 @@ row.where_to = "https://learningequality.org"
 
 # Run a filtered/sorted query using a view's default parameters
 result = cv.default_query().execute()
-for row in results:
+for row in result:
     print(row)
 
 # Run an "aggregation" query
