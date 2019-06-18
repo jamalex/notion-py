@@ -704,4 +704,11 @@ class InvisionBlock(EmbedBlock):
     _type = "invision"
 
 
+class CalloutBlock(BasicBlock):
+
+    icon = field_map("format.page_icon")
+
+    _type = "callout"
+
+
 BLOCK_TYPES = {cls._type: cls for cls in locals().values() if type(cls) == type and issubclass(cls, Block) and hasattr(cls, "_type")}
