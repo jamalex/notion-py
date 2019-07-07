@@ -85,6 +85,15 @@ video = page.children.add_new(VideoBlock, width=200)
 video.set_source_url("https://www.youtube.com/watch?v=oHg5SJYRHA0")
 ```
 
+## Example: Create a new embedded collection view block
+
+```Python
+collection = client.get_collection(COLLECTION_ID) # get an existing collection
+cvb = page.children.add_new_collection_view_block(collection)
+view = cvb.add_new_view(type="table")
+# now the filters and display options on the view can bet set as desired
+```
+
 ## Example: Moving blocks around
 
 ```Python
@@ -177,7 +186,11 @@ print("Sorted results, showing most valuable first:", result)
 
 Note: You can combine `filter`, `aggregate`, and `sort`. See more examples of queries by setting up complex views in Notion, and then inspecting `cv.get("query")`
 
-You can also see [more examples in action in the smoke test runner](https://github.com/jamalex/notion-py/blob/master/notion/smoke_test.py).
+You can also see [more examples in action in the smoke test runner](https://github.com/jamalex/notion-py/blob/master/notion/smoke_test.py). Run it using:
+
+```sh
+python run_smoke_test.py
+```
 
 # _Quick plug: Learning Equality is hiring!_
 
