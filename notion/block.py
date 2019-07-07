@@ -121,6 +121,11 @@ class Children(object):
 
         return block
 
+    def add_new_collection_view_block(self, collection):
+        cvb = self.add_new(CollectionViewBlock)
+        cvb.set("collection_id", collection.id)
+        return cvb
+
     def add_alias(self, block):
         """
         Adds an alias to the provided `block`, i.e. adds the block's ID to the parent's content list,
@@ -628,6 +633,21 @@ class CollectionViewBlock(MediaBlock):
         if not self.collection:
             return None
         return [self._client.get_collection_view(view_id, collection=self.collection) for view_id in self.get("view_ids")]
+
+    def add_new_view(self, type="table"):
+        if not self.collection:
+            logging.warning("{} does not have 'collection_id' set; skipping.".format(self))
+            return None
+
+        view = self._client.get_collection_view(
+            self._client.create_record("collection_view", parent=self, type=type),
+            collection=self._collection
+        )
+        view.set("collection_id", self._collection.id)
+        view_ids = self.get("view_ids", [])
+        view_ids.append(view.id)
+        self.set("view_ids", view_ids)
+        return view
 
     @property
     def title(self):

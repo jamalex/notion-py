@@ -56,13 +56,10 @@ def run_live_smoke_test(token_v2, parent_page_url_or_id):
     C2.move_to(C)
     C1.move_to(C, "first-child")
 
-    cvb = page.children.add_new(CollectionViewBlock)
-    collection = client.get_collection(client.create_record("collection", parent=cvb, schema=get_collection_schema()))
-    view = client.get_collection_view(client.create_record("collection_view", parent=cvb, type="table"), collection=collection)
-    view.set("collection_id", collection.id)
-    cvb.set("collection_id", collection.id)
-    cvb.set("view_ids", [view.id])
+    collection = client.get_collection(client.create_record("collection", parent=page, schema=get_collection_schema()))
+    cvb = page.children.add_new_collection_view_block(collection)
     cvb.title = "My data!"
+    view = cvb.add_new_view(type="table")
 
     row = collection.add_row()
     assert row.person == []
