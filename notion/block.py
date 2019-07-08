@@ -647,6 +647,10 @@ class CollectionViewBlock(MediaBlock):
         view_ids = self.get("view_ids", [])
         view_ids.append(view.id)
         self.set("view_ids", view_ids)
+
+        # At this point, the view does not see to be completely initialized yet.
+        # Hack: wait a bit before e.g. setting a query.
+        time.sleep(3)
         return view
 
     @property
