@@ -99,10 +99,6 @@ class Collection(Record):
     description = field_map("description", api_to_python=notion_to_markdown, python_to_api=markdown_to_notion)
     cover = field_map("cover")
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self._client.refresh_collection_rows(self.id)
-
     @property
     def templates(self):
         if not hasattr(self, "_templates"):
