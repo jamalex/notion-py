@@ -121,11 +121,6 @@ class Children(object):
 
         return block
 
-    def add_new_collection_view_block(self, collection):
-        cvb = self.add_new(CollectionViewBlock)
-        cvb.set("collection_id", collection.id)
-        return cvb
-
     def add_alias(self, block):
         """
         Adds an alias to the provided `block`, i.e. adds the block's ID to the parent's content list,
@@ -619,7 +614,7 @@ class CollectionViewBlock(MediaBlock):
 
     _type = "collection_view"
 
-    @cached_property
+    @property
     def collection(self):
         collection_id = self.get("collection_id")
         if not collection_id:
@@ -627,6 +622,12 @@ class CollectionViewBlock(MediaBlock):
         if not hasattr(self, "_collection"):
             self._collection = self._client.get_collection(collection_id)
         return self._collection
+
+    @collection.setter
+    def collection(self, val):
+        if hasattr(self, "_collection"):
+            del self._collection
+        self.set("collection_id", val.id)
 
     @property
     def views(self):
