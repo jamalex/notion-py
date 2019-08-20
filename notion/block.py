@@ -660,15 +660,15 @@ class CollectionViewBlockViews(Children):
     child_list_key = "view_ids"
 
     def _get_block(self, view_id):
-        return self._parent._client.get_collection_view(view_id, collection=self._parent.collection)
+        return self._client.get_collection_view(view_id, collection=self._parent.collection)
 
     def add_new(self, view_type="table"):
         if not self._parent.collection:
             logging.warning("{} does not have 'collection_id' set; skipping.".format(self))
             return None
 
-        record_id = self._parent._client.create_record(table="collection_view", parent=self._parent, type=view_type)
-        view = self._parent._client.get_collection_view(record_id, collection=self._parent._collection)
+        record_id = self._client.create_record(table="collection_view", parent=self._parent, type=view_type)
+        view = self._client.get_collection_view(record_id, collection=self._parent._collection)
         view.set("collection_id", self._parent._collection.id)
         view_ids = self._parent.get(CollectionViewBlockViews.child_list_key, [])
         view_ids.append(view.id)
