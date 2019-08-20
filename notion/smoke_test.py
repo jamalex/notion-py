@@ -56,6 +56,8 @@ def run_live_smoke_test(token_v2, parent_page_url_or_id):
     C2.move_to(C)
     C1.move_to(C, "first-child")
 
+    page.children.add_new(CalloutBlock, title="I am a callout", icon="🤞")
+
     collection = client.get_collection(client.create_record("collection", parent=page, schema=get_collection_schema()))
     cvb = page.children.add_new(CollectionViewBlock, collection=collection)
     cvb.title = "My data!"
