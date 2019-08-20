@@ -89,9 +89,15 @@ video.set_source_url("https://www.youtube.com/watch?v=oHg5SJYRHA0")
 
 ```Python
 collection = client.get_collection(COLLECTION_ID) # get an existing collection
-cvb = page.children.add_new_collection_view_block(collection)
-view = cvb.add_new_view(type="table")
-# now the filters and display options on the view can bet set as desired
+cvb = page.children.add_new(CollectionViewBlock, collection=collection)
+view = cvb.views.add_new(view_type="table")
+
+# now the filters and format options on the view can bet set as desired.
+# 
+# for example:
+#   view.set("query", ...)
+#   view.set("format.board_groups", ...)
+#   view.set("format.board_properties", ...)
 ```
 
 ## Example: Moving blocks around
