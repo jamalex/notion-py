@@ -664,8 +664,7 @@ class CollectionViewBlockViews(Children):
 
     def add_new(self, view_type="table"):
         if not self._parent.collection:
-            logging.warning("{} does not have 'collection_id' set; skipping.".format(self))
-            return None
+            raise Exception("Collection view block does not have an associated collection: {}".format(self._parent))
 
         record_id = self._client.create_record(table="collection_view", parent=self._parent, type=view_type)
         view = self._client.get_collection_view(record_id, collection=self._parent._collection)
