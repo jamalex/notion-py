@@ -19,6 +19,8 @@ from .utils import extract_id, now, get_embed_link, get_embed_data, add_signed_p
 
 class Children(object):
 
+    child_list_key = "content"
+
     def __init__(self, parent):
         self._parent = parent
         self._client = parent._client
@@ -26,7 +28,7 @@ class Children(object):
     def shuffle(self):
         content = self._content_list()
         random.shuffle(content)
-        self._parent.set("content", content)
+        self._parent.set(self.child_list_key, content)
 
     def filter(self, type=None):
         kids = list(self)
@@ -37,7 +39,7 @@ class Children(object):
         return kids
 
     def _content_list(self):
-        return self._parent.get("content") or []
+        return self._parent.get(self.child_list_key) or []
 
     def _get_block(self, id):
 
@@ -131,7 +133,7 @@ class Children(object):
         self._client.submit_transaction(
             build_operation(
                 id=self._parent.id,
-                path=["content"],
+                path=[self.child_list_key],
                 args={"id": block.id},
                 command="listAfter",
             )
@@ -614,7 +616,7 @@ class CollectionViewBlock(MediaBlock):
 
     _type = "collection_view"
 
-    @cached_property
+    @property
     def collection(self):
         collection_id = self.get("collection_id")
         if not collection_id:
@@ -623,11 +625,17 @@ class CollectionViewBlock(MediaBlock):
             self._collection = self._client.get_collection(collection_id)
         return self._collection
 
+    @collection.setter
+    def collection(self, val):
+        if hasattr(self, "_collection"):
+            del self._collection
+        self.set("collection_id", val.id)
+
     @property
     def views(self):
-        if not self.collection:
-            return None
-        return [self._client.get_collection_view(view_id, collection=self.collection) for view_id in self.get("view_ids")]
+        if not hasattr(self, "_views"):
+            self._views = CollectionViewBlockViews(parent=self)
+        return self._views
 
     @property
     def title(self):
@@ -645,6 +653,30 @@ class CollectionViewBlock(MediaBlock):
 
     def _str_fields(self):
         return super()._str_fields() + ["title", "collection"]
+
+
+class CollectionViewBlockViews(Children):
+
+    child_list_key = "view_ids"
+
+    def _get_block(self, view_id):
+        return self._client.get_collection_view(view_id, collection=self._parent.collection)
+
+    def add_new(self, view_type="table"):
+        if not self._parent.collection:
+            raise Exception("Collection view block does not have an associated collection: {}".format(self._parent))
+
+        record_id = self._client.create_record(table="collection_view", parent=self._parent, type=view_type)
+        view = self._client.get_collection_view(record_id, collection=self._parent._collection)
+        view.set("collection_id", self._parent._collection.id)
+        view_ids = self._parent.get(CollectionViewBlockViews.child_list_key, [])
+        view_ids.append(view.id)
+        self._parent.set(CollectionViewBlockViews.child_list_key, view_ids)
+
+        # At this point, the view does not see to be completely initialized yet.
+        # Hack: wait a bit before e.g. setting a query.
+        time.sleep(3)
+        return view
 
 
 class CollectionViewPageBlock(CollectionViewBlock):

@@ -4,3 +4,8 @@ build/
 dist/
 *.egg-info
 *_testing.py
+
+# pipenv
+.env
+.venv
+Pipfile
