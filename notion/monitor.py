@@ -44,7 +44,7 @@ class Monitor(object):
         assert isinstance(data, list)
         results = ""
         for obj in data:
-            msg = str(len(obj)) + json.dumps(obj, separators=(',', ':'))
+            msg = str(len(obj)) + json.dumps(obj, separators=(",", ":"))
             msg = "{}:{}".format(len(msg), msg)
             results += msg
         return results.encode()
@@ -53,7 +53,11 @@ class Monitor(object):
 
         logger.debug("Initializing new monitoring session.")
 
-        response = self.client.session.get("{}?sessionId={}&EIO=3&transport=polling".format(self.root_url, self.session_id))
+        response = self.client.session.get(
+            "{}?sessionId={}&EIO=3&transport=polling".format(
+                self.root_url, self.session_id
+            )
+        )
 
         self.sid = self._decode_numbered_json_thing(response.content)[0]["sid"]
 
@@ -77,28 +81,35 @@ class Monitor(object):
 
             if record not in self._subscriptions:
 
-                logger.debug("Subscribing new record to the monitoring watchlist: {}/{}".format(record._table, record.id))
+                logger.debug(
+                    "Subscribing new record to the monitoring watchlist: {}/{}".format(
+                        record._table, record.id
+                    )
+                )
 
                 # add the record to the list of records to restore if we're disconnected
                 self._subscriptions.add(record)
 
                 # subscribe to changes to the record itself
-                sub_data.append({
-                    "type": "/api/v1/registerSubscription",
-                    "requestId": str(uuid.uuid4()),
-                    "key": "versions/{}:{}".format(record.id, record._table),
-                    "version": record.get("version", -1),
-                })
+                sub_data.append(
+                    {
+                        "type": "/api/v1/registerSubscription",
+                        "requestId": str(uuid.uuid4()),
+                        "key": "versions/{}:{}".format(record.id, record._table),
+                        "version": record.get("version", -1),
+                    }
+                )
 
                 # if it's a collection, subscribe to changes to its children too
                 if isinstance(record, Collection):
-                    sub_data.append({
-                        "type": "/api/v1/registerSubscription",
-                        "requestId": str(uuid.uuid4()),
-                        "key": "collection/{}".format(record.id),
-                        "version": -1,
-                    })
-
+                    sub_data.append(
+                        {
+                            "type": "/api/v1/registerSubscription",
+                            "requestId": str(uuid.uuid4()),
+                            "key": "collection/{}".format(record.id),
+                            "version": -1,
+                        }
+                    )
 
         data = self._encode_numbered_json_thing(sub_data)
 
@@ -111,29 +122,48 @@ class Monitor(object):
 
         logger.debug("Posting monitoring data: {}".format(data))
 
-        self.client.session.post("{}?sessionId={}&transport=polling&sid={}".format(self.root_url, self.session_id, self.sid), data=data)
+        self.client.session.post(
+            "{}?sessionId={}&transport=polling&sid={}".format(
+                self.root_url, self.session_id, self.sid
+            ),
+            data=data,
+        )
 
     def poll(self, retries=10):
         logger.debug("Starting new long-poll request")
         try:
-            response = self.client.session.get("{}?sessionId={}&EIO=3&transport=polling&sid={}".format(self.root_url, self.session_id, self.sid))
+            response = self.client.session.get(
+                "{}?sessionId={}&EIO=3&transport=polling&sid={}".format(
+                    self.root_url, self.session_id, self.sid
+                )
+            )
             response.raise_for_status()
         except HTTPError as e:
             try:
                 message = "{} / {}".format(response.content, e)
             except:
                 message = "{}".format(e)
-            logger.warn("Problem with submitting polling request: {} (will retry {} more times)".format(message, retries))
+            logger.warn(
+                "Problem with submitting polling request: {} (will retry {} more times)".format(
+                    message, retries
+                )
+            )
             time.sleep(0.1)
             if retries <= 0:
                 raise
             if retries <= 5:
-                logger.error("Persistent error submitting polling request: {} (will retry {} more times)".format(message, retries))
+                logger.error(
+                    "Persistent error submitting polling request: {} (will retry {} more times)".format(
+                        message, retries
+                    )
+                )
                 # if we're close to giving up, also try reinitializing the session
                 self.initialize()
-            self.poll(retries=retries-1)
+            self.poll(retries=retries - 1)
 
-        self._refresh_updated_records(self._decode_numbered_json_thing(response.content))
+        self._refresh_updated_records(
+            self._decode_numbered_json_thing(response.content)
+        )
 
     def _refresh_updated_records(self, events):
 
@@ -141,7 +171,9 @@ class Monitor(object):
 
         for event in events:
 
-            logger.debug("Received the following event from the remote server: {}".format(event))
+            logger.debug(
+                "Received the following event from the remote server: {}".format(event)
+            )
 
             if not isinstance(event, dict):
                 continue
@@ -158,12 +190,22 @@ class Monitor(object):
 
                     record_id, record_table = match.groups()
 
-                    local_version = self.client._store.get_current_version(record_table, record_id)
+                    local_version = self.client._store.get_current_version(
+                        record_table, record_id
+                    )
                     if event["value"] > local_version:
-                        logger.debug("Record {}/{} has changed; refreshing to update from version {} to version {}".format(record_table, record_id, local_version, event["value"]))
+                        logger.debug(
+                            "Record {}/{} has changed; refreshing to update from version {} to version {}".format(
+                                record_table, record_id, local_version, event["value"]
+                            )
+                        )
                         records_to_refresh[record_table].append(record_id)
                     else:
-                        logger.debug("Record {}/{} already at version {}, not trying to update to version {}".format(record_table, record_id, local_version, event["value"]))
+                        logger.debug(
+                            "Record {}/{} already at version {}, not trying to update to version {}".format(
+                                record_table, record_id, local_version, event["value"]
+                            )
+                        )
 
                 if key.startswith("collection/"):
 
@@ -176,7 +218,11 @@ class Monitor(object):
                     self.client.refresh_collection_rows(collection_id)
                     row_ids = self.client._store.get_collection_rows(collection_id)
 
-                    logger.debug("Something inside collection {} has changed; refreshing all {} rows inside it".format(collection_id, len(row_ids)))
+                    logger.debug(
+                        "Something inside collection {} has changed; refreshing all {} rows inside it".format(
+                            collection_id, len(row_ids)
+                        )
+                    )
 
                     records_to_refresh["block"] += row_ids
 

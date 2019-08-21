@@ -23,7 +23,7 @@ setuptools.setup(
     install_requires=install_requires,
     include_package_data=True,
     packages=setuptools.find_packages(),
-    python_requires='>=3.5',
+    python_requires=">=3.5",
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: MIT License",

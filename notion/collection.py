@@ -41,15 +41,18 @@ class NotionDate(object):
         if not date_str:
             return None
         if time_str:
-            return datetime.strptime(date_str + " " + time_str, '%Y-%m-%d %H:%M')
+            return datetime.strptime(date_str + " " + time_str, "%Y-%m-%d %H:%M")
         else:
-            return datetime.strptime(date_str, '%Y-%m-%d').date()
+            return datetime.strptime(date_str, "%Y-%m-%d").date()
 
     def _format_datetime(self, date_or_datetime):
         if not date_or_datetime:
             return None, None
         if isinstance(date_or_datetime, datetime):
-            return date_or_datetime.strftime("%Y-%m-%d"), date_or_datetime.strftime("%H:%M")
+            return (
+                date_or_datetime.strftime("%Y-%m-%d"),
+                date_or_datetime.strftime("%H:%M"),
+            )
         else:
             return date_or_datetime.strftime("%Y-%m-%d"), None
 
@@ -72,10 +75,7 @@ class NotionDate(object):
         if not start_date:
             return []
 
-        data = {
-            "type": self.type(),
-            "start_date": start_date,
-        }
+        data = {"type": self.type(), "start_date": start_date}
 
         if end_date:
             data["end_date"] = end_date
@@ -88,6 +88,7 @@ class NotionDate(object):
 
         return [["‣", [["d", data]]]]
 
+
 class Collection(Record):
     """
     A "collection" corresponds to what's sometimes called a "database" in the Notion UI.
@@ -95,8 +96,14 @@ class Collection(Record):
 
     _table = "collection"
 
-    name = field_map("name", api_to_python=notion_to_markdown, python_to_api=markdown_to_notion)
-    description = field_map("description", api_to_python=notion_to_markdown, python_to_api=markdown_to_notion)
+    name = field_map(
+        "name", api_to_python=notion_to_markdown, python_to_api=markdown_to_notion
+    )
+    description = field_map(
+        "description",
+        api_to_python=notion_to_markdown,
+        python_to_api=markdown_to_notion,
+    )
     cover = field_map("cover")
 
     @property
@@ -149,7 +156,7 @@ class Collection(Record):
         rows = []
         for row_id in self._client._store.get_collection_rows(self.id):
             row = self._client.get_block(row_id)
-            row.__dict__['collection'] = self
+            row.__dict__["collection"] = self
             rows.append(row)
         return rows
 
@@ -165,7 +172,9 @@ class Collection(Record):
             else:
                 remaining.append((operation, path, values))
 
-        return changes + super()._convert_diff_to_changelist(remaining, old_val, new_val)
+        return changes + super()._convert_diff_to_changelist(
+            remaining, old_val, new_val
+        )
 
 
 class CollectionView(Record):
@@ -181,7 +190,9 @@ class CollectionView(Record):
         super().__init__(*args, **kwargs)
 
     def build_query(self, **kwargs):
-        return CollectionQuery(collection=self.collection, collection_view=self, **kwargs)
+        return CollectionQuery(
+            collection=self.collection, collection_view=self, **kwargs
+        )
 
     def default_query(self):
         return self.build_query(**self.get("query", {}))
@@ -209,7 +220,9 @@ class CalendarView(CollectionView):
     _type = "calendar"
 
     def build_query(self, **kwargs):
-        calendar_by = self._client.get_record_data("collection_view", self._id)['query']['calendar_by']
+        calendar_by = self._client.get_record_data("collection_view", self._id)[
+            "query"
+        ]["calendar_by"]
         return super().build_query(calendar_by=calendar_by, **kwargs)
 
 
@@ -242,8 +255,19 @@ def _normalize_query_list(query_list, collection):
 
 
 class CollectionQuery(object):
-
-    def __init__(self, collection, collection_view, search="", type="table", aggregate=[], filter=[], filter_operator="and", sort=[], calendar_by="", group_by=""):
+    def __init__(
+        self,
+        collection,
+        collection_view,
+        search="",
+        type="table",
+        aggregate=[],
+        filter=[],
+        filter_operator="and",
+        sort=[],
+        calendar_by="",
+        group_by="",
+    ):
         self.collection = collection
         self.collection_view = collection_view
         self.search = search
@@ -260,22 +284,24 @@ class CollectionQuery(object):
 
         result_class = QUERY_RESULT_TYPES.get(self.type, QueryResult)
 
-        return result_class(self.collection, self._client.query_collection(
-            collection_id=self.collection.id,
-            collection_view_id=self.collection_view.id,
-            search=self.search,
-            type=self.type,
-            aggregate=self.aggregate,
-            filter=self.filter,
-            filter_operator=self.filter_operator,
-            sort=self.sort,
-            calendar_by=self.calendar_by,
-            group_by=self.group_by,
-        ))
+        return result_class(
+            self.collection,
+            self._client.query_collection(
+                collection_id=self.collection.id,
+                collection_view_id=self.collection_view.id,
+                search=self.search,
+                type=self.type,
+                aggregate=self.aggregate,
+                filter=self.filter,
+                filter_operator=self.filter_operator,
+                sort=self.sort,
+                calendar_by=self.calendar_by,
+                group_by=self.group_by,
+            ),
+        )
 
 
 class CollectionRowBlock(PageBlock):
-
     @property
     def is_template(self):
         return self.get("is_template")
@@ -286,7 +312,11 @@ class CollectionRowBlock(PageBlock):
 
     @property
     def schema(self):
-        return [prop for prop in self.collection.get_schema_properties() if prop["type"] not in ["formula", "rollup"]]
+        return [
+            prop
+            for prop in self.collection.get_schema_properties()
+            if prop["type"] not in ["formula", "rollup"]
+        ]
 
     def __getattr__(self, attname):
         return self.get_property(attname)
@@ -315,7 +345,9 @@ class CollectionRowBlock(PageBlock):
 
         prop = self.collection.get_schema_property(identifier)
         if prop is None:
-            raise AttributeError("Object does not have property '{}'".format(identifier))
+            raise AttributeError(
+                "Object does not have property '{}'".format(identifier)
+            )
 
         val = self.get(["properties", prop["id"]])
 
@@ -341,11 +373,17 @@ class CollectionRowBlock(PageBlock):
 
         for prop_id in changed_props:
             prop = self.collection.get_schema_property(prop_id)
-            old = self._convert_notion_to_python(old_val.get("properties", {}).get(prop_id), prop)
-            new = self._convert_notion_to_python(new_val.get("properties", {}).get(prop_id), prop)
+            old = self._convert_notion_to_python(
+                old_val.get("properties", {}).get(prop_id), prop
+            )
+            new = self._convert_notion_to_python(
+                new_val.get("properties", {}).get(prop_id), prop
+            )
             changes.append(("prop_changed", prop["slug"], (old, new)))
 
-        return changes + super()._convert_diff_to_changelist(remaining, old_val, new_val)
+        return changes + super()._convert_diff_to_changelist(
+            remaining, old_val, new_val
+        )
 
     def _convert_notion_to_python(self, val, prop):
 
@@ -363,17 +401,37 @@ class CollectionRowBlock(PageBlock):
         if prop["type"] in ["multi_select"]:
             val = [v.strip() for v in val[0][0].split(",")] if val else []
         if prop["type"] in ["person"]:
-            val = [self._client.get_user(item[1][0][1]) for item in val if item[0] == "‣"] if val else []
+            val = (
+                [self._client.get_user(item[1][0][1]) for item in val if item[0] == "‣"]
+                if val
+                else []
+            )
         if prop["type"] in ["email", "phone_number", "url"]:
             val = val[0][0] if val else ""
         if prop["type"] in ["date"]:
             val = NotionDate.from_notion(val)
         if prop["type"] in ["file"]:
-            val = [add_signed_prefix_as_needed(item[1][0][1], client=self._client) for item in val if item[0] != ","] if val else []
+            val = (
+                [
+                    add_signed_prefix_as_needed(item[1][0][1], client=self._client)
+                    for item in val
+                    if item[0] != ","
+                ]
+                if val
+                else []
+            )
         if prop["type"] in ["checkbox"]:
             val = val[0][0] == "Yes" if val else False
         if prop["type"] in ["relation"]:
-            val = [self._client.get_block(item[1][0][1]) for item in val if item[0] == "‣"] if val else []
+            val = (
+                [
+                    self._client.get_block(item[1][0][1])
+                    for item in val
+                    if item[0] == "‣"
+                ]
+                if val
+                else []
+            )
         if prop["type"] in ["created_time", "last_edited_time"]:
             val = self.get(prop["type"])
             val = datetime.utcfromtimestamp(val / 1000)
@@ -394,7 +452,9 @@ class CollectionRowBlock(PageBlock):
 
         prop = self.collection.get_schema_property(identifier)
         if prop is None:
-            raise AttributeError("Object does not have property '{}'".format(identifier))
+            raise AttributeError(
+                "Object does not have property '{}'".format(identifier)
+            )
 
         path, val = self._convert_python_to_notion(val, prop, identifier=identifier)
 
@@ -406,12 +466,18 @@ class CollectionRowBlock(PageBlock):
             if not val:
                 val = ""
             if not isinstance(val, str):
-                raise TypeError("Value passed to property '{}' must be a string.".format(identifier))
+                raise TypeError(
+                    "Value passed to property '{}' must be a string.".format(identifier)
+                )
             val = markdown_to_notion(val)
         if prop["type"] in ["number"]:
             if val is not None:
                 if not isinstance(val, float) and not isinstance(val, int):
-                    raise TypeError("Value passed to property '{}' must be an int or float.".format(identifier))
+                    raise TypeError(
+                        "Value passed to property '{}' must be an int or float.".format(
+                            identifier
+                        )
+                    )
                 val = [[str(val)]]
         if prop["type"] in ["select"]:
             if not val:
@@ -420,8 +486,11 @@ class CollectionRowBlock(PageBlock):
                 valid_options = [p["value"].lower() for p in prop["options"]]
                 val = val.split(",")[0]
                 if val.lower() not in valid_options:
-                    raise ValueError("Value '{}' not acceptable for property '{}' (valid options: {})"
-                                     .format(val, identifier, valid_options))
+                    raise ValueError(
+                        "Value '{}' not acceptable for property '{}' (valid options: {})".format(
+                            val, identifier, valid_options
+                        )
+                    )
                 val = [[val]]
         if prop["type"] in ["multi_select"]:
             if not val:
@@ -431,8 +500,11 @@ class CollectionRowBlock(PageBlock):
                 val = [val]
             for v in val:
                 if v.lower() not in valid_options:
-                    raise ValueError("Value '{}' not acceptable for property '{}' (valid options: {})"
-                                     .format(v, identifier, valid_options))
+                    raise ValueError(
+                        "Value '{}' not acceptable for property '{}' (valid options: {})".format(
+                            v, identifier, valid_options
+                        )
+                    )
             val = [[",".join(val)]]
         if prop["type"] in ["person"]:
             userlist = []
@@ -440,7 +512,7 @@ class CollectionRowBlock(PageBlock):
                 val = [val]
             for user in val:
                 user_id = user if isinstance(user, str) else user.id
-                userlist += [['‣', [['u', user_id]]], [',']]
+                userlist += [["‣", [["u", user_id]]], [","]]
             val = userlist[:-1]
         if prop["type"] in ["email", "phone_number", "url"]:
             val = [[val, [["a", val]]]]
@@ -458,11 +530,13 @@ class CollectionRowBlock(PageBlock):
             for url in val:
                 url = remove_signed_prefix_as_needed(url)
                 filename = url.split("/")[-1]
-                filelist += [[filename, [['a', url]]], [',']]
+                filelist += [[filename, [["a", url]]], [","]]
             val = filelist[:-1]
         if prop["type"] in ["checkbox"]:
             if not isinstance(val, bool):
-                raise TypeError("Value passed to property '{}' must be a bool.".format(identifier))
+                raise TypeError(
+                    "Value passed to property '{}' must be a bool.".format(identifier)
+                )
             val = [["Yes" if val else "No"]]
         if prop["type"] in ["relation"]:
             pagelist = []
@@ -471,7 +545,7 @@ class CollectionRowBlock(PageBlock):
             for page in val:
                 if isinstance(page, str):
                     page = self._client.get_block(page)
-                pagelist += [['‣', [['p', page.id]]], [',']]
+                pagelist += [["‣", [["p", page.id]]], [","]]
             val = pagelist[:-1]
         if prop["type"] in ["created_time", "last_edited_time"]:
             val = int(val.timestamp() * 1000)
@@ -486,16 +560,12 @@ class CollectionRowBlock(PageBlock):
         # Mark the block as inactive
         self._client.submit_transaction(
             build_operation(
-                id=self.id,
-                path=[],
-                args={"alive": False},
-                command="update",
+                id=self.id, path=[], args={"alive": False}, command="update"
             )
         )
 
 
 class TemplateBlock(CollectionRowBlock):
-
     @property
     def is_template(self):
         return self.get("is_template")
@@ -523,7 +593,6 @@ class Templates(Children):
 
 
 class QueryResult(object):
-
     def __init__(self, collection, result):
         self.collection = collection
         self._client = collection._client
@@ -535,7 +604,7 @@ class QueryResult(object):
 
     def _get_block(self, id):
         block = CollectionRowBlock(self._client, id)
-        block.__dict__['collection'] = self.collection
+        block.__dict__["collection"] = self.collection
         return block
 
     def get_aggregate(self, id):
@@ -606,6 +675,14 @@ class GalleryQueryResult(QueryResult):
     _type = "gallery"
 
 
-COLLECTION_VIEW_TYPES = {cls._type: cls for cls in locals().values() if type(cls) == type and issubclass(cls, CollectionView) and hasattr(cls, "_type")}
+COLLECTION_VIEW_TYPES = {
+    cls._type: cls
+    for cls in locals().values()
+    if type(cls) == type and issubclass(cls, CollectionView) and hasattr(cls, "_type")
+}
 
-QUERY_RESULT_TYPES = {cls._type: cls for cls in locals().values() if type(cls) == type and issubclass(cls, QueryResult) and hasattr(cls, "_type")}
+QUERY_RESULT_TYPES = {
+    cls._type: cls
+    for cls in locals().values()
+    if type(cls) == type and issubclass(cls, QueryResult) and hasattr(cls, "_type")
+}

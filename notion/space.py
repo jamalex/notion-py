@@ -29,19 +29,23 @@ class Space(Record):
         return super()._str_fields() + ["name", "domain"]
 
     def add_page(self, title, type="page", shared=False):
-        assert type in ["page", "collection_view_page"], "'type' must be one of 'page' or 'collection_view_page'"
+        assert type in [
+            "page",
+            "collection_view_page",
+        ], "'type' must be one of 'page' or 'collection_view_page'"
         if shared:
-            permissions = [{
-                "role": "editor",
-                "type": "space_permission",
-            }]
+            permissions = [{"role": "editor", "type": "space_permission"}]
         else:
-            permissions = [{
-                "role": "editor",
-                "type": "user_permission",
-                "user_id": self._client.current_user.id,
-            }]
-        page_id = self._client.create_record("block", self, type=type, permissions=permissions)
+            permissions = [
+                {
+                    "role": "editor",
+                    "type": "user_permission",
+                    "user_id": self._client.current_user.id,
+                }
+            ]
+        page_id = self._client.create_record(
+            "block", self, type=type, permissions=permissions
+        )
         page = self._client.get_block(page_id)
         page.title = title
         return page

@@ -14,7 +14,15 @@ from .maps import property_map, field_map, mapper
 from .operations import build_operation
 from .records import Record
 from .settings import S3_URL_PREFIX, BASE_URL
-from .utils import extract_id, now, get_embed_link, get_embed_data, add_signed_prefix_as_needed, remove_signed_prefix_as_needed, get_by_path
+from .utils import (
+    extract_id,
+    now,
+    get_embed_link,
+    get_embed_data,
+    add_signed_prefix_as_needed,
+    remove_signed_prefix_as_needed,
+    get_by_path,
+)
 
 
 class Children(object):
@@ -104,12 +112,23 @@ class Children(object):
         """
 
         # determine the block type string from the Block class, if that's what was provided
-        if isinstance(block_type, type) and issubclass(block_type, Block) and hasattr(block_type, "_type"):
+        if (
+            isinstance(block_type, type)
+            and issubclass(block_type, Block)
+            and hasattr(block_type, "_type")
+        ):
             block_type = block_type._type
         elif not isinstance(block_type, str):
-            raise Exception("block_type must be a string or a Block subclass with a _type attribute")
+            raise Exception(
+                "block_type must be a string or a Block subclass with a _type attribute"
+            )
 
-        block_id = self._client.create_record(table="block", parent=self._parent, type=block_type, child_list_key=child_list_key)
+        block_id = self._client.create_record(
+            table="block",
+            parent=self._parent,
+            type=block_type,
+            child_list_key=child_list_key,
+        )
 
         block = self._get_block(block_id)
 
@@ -119,7 +138,11 @@ class Children(object):
                     if hasattr(block, key):
                         setattr(block, key, val)
                     else:
-                        logging.warning("{} does not have attribute '{}' to be set; skipping.".format(block, key))
+                        logging.warning(
+                            "{} does not have attribute '{}' to be set; skipping.".format(
+                                block, key
+                            )
+                        )
 
         return block
 
@@ -247,7 +270,11 @@ class Block(Record):
                 continue
 
             # check whether the value changed matches one of our mapped fields/properties
-            fields = [(name, field) for name, field in mappers.items() if path.startswith(field.path)]
+            fields = [
+                (name, field)
+                for name, field in mappers.items()
+                if path.startswith(field.path)
+            ]
             if fields:
                 changed_fields.add(fields[0])
                 continue
@@ -280,7 +307,9 @@ class Block(Record):
             new = field.api_to_python(get_by_path(field.path, new_val))
             changes.append(("changed_field", name, (old, new)))
 
-        return changes + super()._convert_diff_to_changelist(remaining, old_val, new_val)
+        return changes + super()._convert_diff_to_changelist(
+            remaining, old_val, new_val
+        )
 
     def remove(self, permanently=False):
         """
@@ -297,10 +326,7 @@ class Block(Record):
                 # Mark the block as inactive
                 self._client.submit_transaction(
                     build_operation(
-                        id=self.id,
-                        path=[],
-                        args={"alive": False},
-                        command="update",
+                        id=self.id, path=[], args={"alive": False}, command="update"
                     )
                 )
 
@@ -318,7 +344,9 @@ class Block(Record):
 
             if permanently:
                 block_id = self.id
-                self._client.post("deleteBlocks", {"blockIds": [block_id], "permanentlyDelete": True})
+                self._client.post(
+                    "deleteBlocks", {"blockIds": [block_id], "permanentlyDelete": True}
+                )
                 del self._client._store._values["block"][block_id]
 
         else:
@@ -334,7 +362,9 @@ class Block(Record):
             )
 
     def move_to(self, target_block, position="last-child"):
-        assert isinstance(target_block, Block), "target_block must be an instance of Block or one of its subclasses"
+        assert isinstance(
+            target_block, Block
+        ), "target_block must be an instance of Block or one of its subclasses"
         assert position in ["first-child", "last-child", "before", "after"]
 
         if "child" in position:
@@ -364,7 +394,11 @@ class Block(Record):
                     build_operation(
                         id=self.id,
                         path=[],
-                        args={"alive": True, "parent_id": new_parent_id, "parent_table": new_parent_table},
+                        args={
+                            "alive": True,
+                            "parent_id": new_parent_id,
+                            "parent_table": new_parent_table,
+                        },
                         command="update",
                     )
                 )
@@ -382,7 +416,14 @@ class Block(Record):
             )
 
             # update the local block cache to reflect the updates
-            self._client.refresh_records(block=[self.id, self.get("parent_id"), target_block.id, target_block.get("parent_id")])
+            self._client.refresh_records(
+                block=[
+                    self.id,
+                    self.get("parent_id"),
+                    target_block.id,
+                    target_block.get("parent_id"),
+                ]
+            )
 
 
 class DividerBlock(Block):
@@ -422,8 +463,9 @@ class BasicBlock(Block):
         """
         Convert this block into another type of BasicBlock. Returns a new instance of the appropriate class.
         """
-        assert new_type in BLOCK_TYPES and issubclass(BLOCK_TYPES[new_type], BasicBlock), \
-            "Target type must correspond to a subclass of BasicBlock"
+        assert new_type in BLOCK_TYPES and issubclass(
+            BLOCK_TYPES[new_type], BasicBlock
+        ), "Target type must correspond to a subclass of BasicBlock"
         self.type = new_type
         return self._client.get_block(self.id)
 
@@ -435,7 +477,11 @@ class TodoBlock(BasicBlock):
 
     _type = "to_do"
 
-    checked = property_map("checked", python_to_api=lambda x: "Yes" if x else "No", api_to_python=lambda x: x == "Yes")
+    checked = property_map(
+        "checked",
+        python_to_api=lambda x: "Yes" if x else "No",
+        api_to_python=lambda x: x == "Yes",
+    )
 
     def _str_fields(self):
         return super()._str_fields() + ["checked"]
@@ -476,7 +522,11 @@ class PageBlock(BasicBlock):
 
     _type = "page"
 
-    icon = field_map("format.page_icon", api_to_python=add_signed_prefix_as_needed, python_to_api=remove_signed_prefix_as_needed)
+    icon = field_map(
+        "format.page_icon",
+        api_to_python=add_signed_prefix_as_needed,
+        python_to_api=remove_signed_prefix_as_needed,
+    )
 
 
 class BulletedListBlock(BasicBlock):
@@ -506,7 +556,11 @@ class TextBlock(BasicBlock):
 
 class EquationBlock(BasicBlock):
 
-    latex = field_map(["properties", "title"], python_to_api=lambda x: [[x]], api_to_python=lambda x: x[0][0])
+    latex = field_map(
+        ["properties", "title"],
+        python_to_api=lambda x: [[x]],
+        api_to_python=lambda x: x[0][0],
+    )
 
     _type = "equation"
 
@@ -523,8 +577,16 @@ class EmbedBlock(MediaBlock):
 
     _type = "embed"
 
-    display_source = field_map("format.display_source", api_to_python=add_signed_prefix_as_needed, python_to_api=remove_signed_prefix_as_needed)
-    source = property_map("source", api_to_python=add_signed_prefix_as_needed, python_to_api=remove_signed_prefix_as_needed)
+    display_source = field_map(
+        "format.display_source",
+        api_to_python=add_signed_prefix_as_needed,
+        python_to_api=remove_signed_prefix_as_needed,
+    )
+    source = property_map(
+        "source",
+        api_to_python=add_signed_prefix_as_needed,
+        python_to_api=remove_signed_prefix_as_needed,
+    )
     height = field_map("format.block_height")
     full_width = field_map("format.block_full_width")
     page_width = field_map("format.block_page_width")
@@ -547,15 +609,20 @@ class EmbedOrUploadBlock(EmbedBlock):
         mimetype = mimetypes.guess_type(path)[0] or "text/plain"
         filename = os.path.split(path)[-1]
 
-        data = self._client.post("getUploadFileUrl", {"bucket": "secure", "name": filename, "contentType": mimetype}).json()
+        data = self._client.post(
+            "getUploadFileUrl",
+            {"bucket": "secure", "name": filename, "contentType": mimetype},
+        ).json()
 
-        with open(path, 'rb') as f:
-            response = requests.put(data["signedPutUrl"], data=f, headers={"Content-type": mimetype})
+        with open(path, "rb") as f:
+            response = requests.put(
+                data["signedPutUrl"], data=f, headers={"Content-type": mimetype}
+            )
             response.raise_for_status()
 
         self.display_source = data["url"]
         self.source = data["url"]
-        self.file_id = data["url"][len(S3_URL_PREFIX):].split("/")[0]
+        self.file_id = data["url"][len(S3_URL_PREFIX) :].split("/")[0]
 
 
 class VideoBlock(EmbedOrUploadBlock):
@@ -640,6 +707,7 @@ class CollectionViewBlock(MediaBlock):
     @property
     def title(self):
         return self.collection.name
+
     @title.setter
     def title(self, val):
         self.collection.name = val
@@ -647,6 +715,7 @@ class CollectionViewBlock(MediaBlock):
     @property
     def description(self):
         return self.collection.description
+
     @description.setter
     def description(self, val):
         self.collection.description = val
@@ -660,14 +729,24 @@ class CollectionViewBlockViews(Children):
     child_list_key = "view_ids"
 
     def _get_block(self, view_id):
-        return self._client.get_collection_view(view_id, collection=self._parent.collection)
+        return self._client.get_collection_view(
+            view_id, collection=self._parent.collection
+        )
 
     def add_new(self, view_type="table"):
         if not self._parent.collection:
-            raise Exception("Collection view block does not have an associated collection: {}".format(self._parent))
+            raise Exception(
+                "Collection view block does not have an associated collection: {}".format(
+                    self._parent
+                )
+            )
 
-        record_id = self._client.create_record(table="collection_view", parent=self._parent, type=view_type)
-        view = self._client.get_collection_view(record_id, collection=self._parent._collection)
+        record_id = self._client.create_record(
+            table="collection_view", parent=self._parent, type=view_type
+        )
+        view = self._client.get_collection_view(
+            record_id, collection=self._parent._collection
+        )
         view.set("collection_id", self._parent._collection.id)
         view_ids = self._parent.get(CollectionViewBlockViews.child_list_key, [])
         view_ids.append(view.id)
@@ -681,7 +760,11 @@ class CollectionViewBlockViews(Children):
 
 class CollectionViewPageBlock(CollectionViewBlock):
 
-    icon = field_map("format.page_icon", api_to_python=add_signed_prefix_as_needed, python_to_api=remove_signed_prefix_as_needed)
+    icon = field_map(
+        "format.page_icon",
+        api_to_python=add_signed_prefix_as_needed,
+        python_to_api=remove_signed_prefix_as_needed,
+    )
 
     _type = "collection_view_page"
 
@@ -743,4 +826,8 @@ class CalloutBlock(BasicBlock):
     _type = "callout"
 
 
-BLOCK_TYPES = {cls._type: cls for cls in locals().values() if type(cls) == type and issubclass(cls, Block) and hasattr(cls, "_type")}
+BLOCK_TYPES = {
+    cls._type: cls
+    for cls in locals().values()
+    if type(cls) == type and issubclass(cls, Block) and hasattr(cls, "_type")
+}

@@ -8,7 +8,13 @@ from requests.cookies import cookiejar_from_dict
 from urllib.parse import urljoin
 
 from .block import Block, BLOCK_TYPES
-from .collection import Collection, CollectionView, CollectionRowBlock, COLLECTION_VIEW_TYPES, TemplateBlock
+from .collection import (
+    Collection,
+    CollectionView,
+    CollectionRowBlock,
+    COLLECTION_VIEW_TYPES,
+    TemplateBlock,
+)
 from .logger import logger
 from .monitor import Monitor
 from .operations import operation_update_last_edited, build_operation
@@ -72,7 +78,9 @@ class NotionClient(object):
         """
         Retrieve an instance of Collection that maps to the collection identified by the ID passed in.
         """
-        coll = self.get_record_data("collection", collection_id, force_refresh=force_refresh)
+        coll = self.get_record_data(
+            "collection", collection_id, force_refresh=force_refresh
+        )
         return Collection(self, collection_id) if coll else None
 
     def get_user(self, user_id, force_refresh=False):
@@ -101,14 +109,26 @@ class NotionClient(object):
             if not match:
                 raise Exception("Invalid collection view URL")
             block_id, view_id = match.groups()
-            collection = self.get_block(block_id, force_refresh=force_refresh).collection
+            collection = self.get_block(
+                block_id, force_refresh=force_refresh
+            ).collection
         else:
             view_id = url_or_id
-            assert collection is not None, "If 'url_or_id' is an ID (not a URL), you must also pass the 'collection'"
+            assert (
+                collection is not None
+            ), "If 'url_or_id' is an ID (not a URL), you must also pass the 'collection'"
 
-        view = self.get_record_data("collection_view", view_id, force_refresh=force_refresh)
-        
-        return COLLECTION_VIEW_TYPES.get(view.get("type", ""), CollectionView)(self, view_id, collection=collection) if view else None
+        view = self.get_record_data(
+            "collection_view", view_id, force_refresh=force_refresh
+        )
+
+        return (
+            COLLECTION_VIEW_TYPES.get(view.get("type", ""), CollectionView)(
+                self, view_id, collection=collection
+            )
+            if view
+            else None
+        )
 
     def refresh_records(self, **kwargs):
         """
@@ -128,8 +148,16 @@ class NotionClient(object):
         url = urljoin(API_BASE_URL, endpoint)
         response = self.session.post(url, json=data)
         if response.status_code == 400:
-            logger.error("Got 400 error attempting to POST to {}, with data: {}".format(endpoint, json.dumps(data, indent=2)))
-            raise HTTPError(response.json().get("message", "There was an error (400) submitting the request."))
+            logger.error(
+                "Got 400 error attempting to POST to {}, with data: {}".format(
+                    endpoint, json.dumps(data, indent=2)
+                )
+            )
+            raise HTTPError(
+                response.json().get(
+                    "message", "There was an error (400) submitting the request."
+                )
+            )
         response.raise_for_status()
         return response
 
@@ -142,16 +170,19 @@ class NotionClient(object):
             operations = [operations]
 
         if update_last_edited:
-            updated_blocks = set([op["id"] for op in operations if op["table"] == "block"])
-            operations += [operation_update_last_edited(self.current_user.id, block_id) for block_id in updated_blocks]
+            updated_blocks = set(
+                [op["id"] for op in operations if op["table"] == "block"]
+            )
+            operations += [
+                operation_update_last_edited(self.current_user.id, block_id)
+                for block_id in updated_blocks
+            ]
 
         # if we're in a transaction, just add these operations to the list; otherwise, execute them right away
         if self.in_transaction():
             self._transaction_operations += operations
         else:
-            data = {
-                "operations": operations
-            }
+            data = {"operations": operations}
             self.post("submitTransaction", data).json()
             self._store.run_local_operations(operations)
 
@@ -172,7 +203,12 @@ class NotionClient(object):
         return hasattr(self, "_transaction_operations")
 
     def search_pages_with_parent(self, parent_id, search=""):
-        data = {"query": search, "parentId": parent_id, "limit": 10000, "spaceId": self.current_space.id}
+        data = {
+            "query": search,
+            "parentId": parent_id,
+            "limit": 10000,
+            "spaceId": self.current_space.id,
+        }
         response = self.post("searchPagesWithParent", data).json()
         self._store.store_recordmap(response["recordMap"])
         return response["results"]
@@ -184,7 +220,7 @@ class NotionClient(object):
 
         child_list_key = kwargs.get("child_list_key") or parent.child_list_key
 
-        args={
+        args = {
             "id": record_id,
             "version": 1,
             "alive": True,
@@ -201,11 +237,7 @@ class NotionClient(object):
             # create the new record
             self.submit_transaction(
                 build_operation(
-                    args=args,
-                    command="set",
-                    id=record_id,
-                    path=[],
-                    table=table,
+                    args=args, command="set", id=record_id, path=[], table=table
                 )
             )
 
@@ -255,4 +287,3 @@ class Transaction(object):
             self.client.submit_transaction(operations)
 
         self.client._store.handle_post_transaction_refreshing()
-

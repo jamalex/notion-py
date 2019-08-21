@@ -17,16 +17,17 @@ from .utils import extract_id
 
 
 class MissingClass(object):
-
     def __bool__(self):
         return False
+
 
 Missing = MissingClass()
 
 
 class Callback(object):
-
-    def __init__(self, callback, record, callback_id=None, extra_kwargs={}, watch_children=True):
+    def __init__(
+        self, callback, record, callback_id=None, extra_kwargs={}, watch_children=True
+    ):
         self.callback = callback
         self.record = record
         self.callback_id = callback_id or str(uuid.uuid4())
@@ -38,7 +39,9 @@ class Callback(object):
         kwargs["record"] = self.record
         kwargs["callback_id"] = self.callback_id
         kwargs["difference"] = difference
-        kwargs["changes"] = self.record._convert_diff_to_changelist(difference, old_val, new_val)
+        kwargs["changes"] = self.record._convert_diff_to_changelist(
+            difference, old_val, new_val
+        )
 
         logger.debug("Firing callback {} with kwargs: {}".format(self.callback, kwargs))
 
@@ -55,7 +58,11 @@ class Callback(object):
             # trigger the callback within its own thread, so it won't block others if it's long-running
             threading.Thread(target=self.callback, kwargs=kwargs, daemon=True).start()
         except Exception as e:
-            logger.error("Error while processing callback for {}: {}".format(repr(self.record), repr(e)))
+            logger.error(
+                "Error while processing callback for {}: {}".format(
+                    repr(self.record), repr(e)
+                )
+            )
 
     def __eq__(self, val):
         if isinstance(val, str):
@@ -67,11 +74,12 @@ class Callback(object):
 
 
 class RecordStore(object):
-
     def __init__(self, client, cache_key=None):
         self._mutex = Lock()
         self._client = client
-        self._cache_key = cache_key or str(int(datetime.datetime.now().timestamp() * 1000))
+        self._cache_key = cache_key or str(
+            int(datetime.datetime.now().timestamp() * 1000)
+        )
         self._values = defaultdict(lambda: defaultdict(dict))
         self._role = defaultdict(lambda: defaultdict(str))
         self._collection_row_ids = {}
@@ -85,9 +93,13 @@ class RecordStore(object):
         return self._values[table].get(id, Missing)
 
     def add_callback(self, record, callback, callback_id=None, extra_kwargs={}):
-        assert callable(callback), "The callback must be a 'callable' object, such as a function."
+        assert callable(
+            callback
+        ), "The callback must be a 'callable' object, such as a function."
         self.remove_callbacks(record._table, record.id, callback_id)
-        callback_obj = Callback(callback, record, callback_id=callback_id, extra_kwargs=extra_kwargs)
+        callback_obj = Callback(
+            callback, record, callback_id=callback_id, extra_kwargs=extra_kwargs
+        )
         self._callbacks[record._table][record.id].append(callback_obj)
         return callback_obj
 
@@ -103,7 +115,9 @@ class RecordStore(object):
             callbacks.remove(callback_or_callback_id_prefix)
 
     def _get_cache_path(self, attribute):
-        return str(Path(CACHE_DIR).joinpath("{}{}.json".format(self._cache_key, attribute)))
+        return str(
+            Path(CACHE_DIR).joinpath("{}{}.json".format(self._cache_key, attribute))
+        )
 
     def _load_cache(self, attributes=("_values", "_role", "_collection_row_ids")):
         for attr in attributes:
@@ -125,9 +139,21 @@ class RecordStore(object):
             added = new_ids - old_ids
             removed = old_ids - new_ids
             for id in added:
-                self._trigger_callbacks("collection", collection_id, [("row_added", "rows", id)], old_ids, new_ids)
+                self._trigger_callbacks(
+                    "collection",
+                    collection_id,
+                    [("row_added", "rows", id)],
+                    old_ids,
+                    new_ids,
+                )
             for id in removed:
-                self._trigger_callbacks("collection", collection_id, [("row_removed", "rows", id)], old_ids, new_ids)
+                self._trigger_callbacks(
+                    "collection",
+                    collection_id,
+                    [("row_removed", "rows", id)],
+                    old_ids,
+                    new_ids,
+                )
         self._collection_row_ids[collection_id] = row_ids
         self._save_cache("_collection_row_ids")
 
@@ -169,9 +195,18 @@ class RecordStore(object):
                 self._role[table][id] = role
                 self._save_cache("_role")
             if value:
-                logger.debug("Updating 'value' for {}/{} to {}".format(table, id, value))
+                logger.debug(
+                    "Updating 'value' for {}/{} to {}".format(table, id, value)
+                )
                 old_val = self._values[table][id]
-                difference = list(diff(old_val, value, ignore=["version", "last_edited_time", "last_edited_by"], expand=True))
+                difference = list(
+                    diff(
+                        old_val,
+                        value,
+                        ignore=["version", "last_edited_time", "last_edited_by"],
+                        expand=True,
+                    )
+                )
                 self._values[table][id] = value
                 self._save_cache("_values")
                 if old_val and difference:
@@ -201,16 +236,29 @@ class RecordStore(object):
 
             # if we're in a transaction, add the requested IDs to a queue to refresh when the transaction completes
             if self._client.in_transaction():
-                self._records_to_refresh[table] = list(set(self._records_to_refresh.get(table, []) + ids))
+                self._records_to_refresh[table] = list(
+                    set(self._records_to_refresh.get(table, []) + ids)
+                )
                 continue
 
             requestlist += [{"table": table, "id": extract_id(id)} for id in ids]
 
         if requestlist:
-            logger.debug("Calling 'getRecordValues' endpoint for requests: {}".format(requestlist))
-            results = self._client.post("getRecordValues", {"requests": requestlist}).json()["results"]
+            logger.debug(
+                "Calling 'getRecordValues' endpoint for requests: {}".format(
+                    requestlist
+                )
+            )
+            results = self._client.post(
+                "getRecordValues", {"requests": requestlist}
+            ).json()["results"]
             for request, result in zip(requestlist, results):
-                self._update_record(request["table"], request["id"], value=result.get("value"), role=result.get("role"))
+                self._update_record(
+                    request["table"],
+                    request["id"],
+                    value=result.get("value"),
+                    role=result.get("role"),
+                )
 
     def get_current_version(self, table, id):
         values = self._get(table, id)
@@ -225,7 +273,13 @@ class RecordStore(object):
             self._pages_to_refresh.append(page_id)
             return
 
-        data = {"pageId": page_id, "limit": 100000, "cursor": {"stack": []}, "chunkNumber": 0, "verticalColumns": False}
+        data = {
+            "pageId": page_id,
+            "limit": 100000,
+            "cursor": {"stack": []},
+            "chunkNumber": 0,
+            "verticalColumns": False,
+        }
 
         recordmap = self._client.post("loadPageChunk", data).json()["recordMap"]
 
@@ -234,9 +288,23 @@ class RecordStore(object):
     def store_recordmap(self, recordmap):
         for table, records in recordmap.items():
             for id, record in records.items():
-                self._update_record(table, id, value=record.get("value"), role=record.get("role"))
+                self._update_record(
+                    table, id, value=record.get("value"), role=record.get("role")
+                )
 
-    def call_query_collection(self, collection_id, collection_view_id, search="", type="table", aggregate=[], filter=[], filter_operator="and", sort=[], calendar_by="", group_by=""):
+    def call_query_collection(
+        self,
+        collection_id,
+        collection_view_id,
+        search="",
+        type="table",
+        aggregate=[],
+        filter=[],
+        filter_operator="and",
+        sort=[],
+        calendar_by="",
+        group_by="",
+    ):
 
         # convert singletons into lists if needed
         if isinstance(aggregate, dict):
@@ -258,11 +326,11 @@ class RecordStore(object):
                 "type": type,
             },
             "query": {
-            "aggregate": aggregate,
-            "filter": filter,
-            "filter_operator": filter_operator,
-            "sort": sort,
-            }
+                "aggregate": aggregate,
+                "filter": filter,
+                "filter_operator": filter_operator,
+                "sort": sort,
+            },
         }
 
         response = self._client.post("queryCollection", data).json()

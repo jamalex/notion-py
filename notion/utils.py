@@ -22,13 +22,23 @@ def extract_id(url_or_id):
     """
     if url_or_id.startswith("http"):
         assert url_or_id.startswith(BASE_URL)
-        url_or_id = url_or_id.split("#")[-1].split("/")[-1].split("&p=")[-1].split("?")[0].split("-")[-1]
+        url_or_id = (
+            url_or_id.split("#")[-1]
+            .split("/")[-1]
+            .split("&p=")[-1]
+            .split("?")[0]
+            .split("-")[-1]
+        )
     return str(uuid.UUID(url_or_id))
 
 
 def get_embed_data(source_url):
 
-    return requests.get("https://api.embed.ly/1/oembed?key=421626497c5d4fc2ae6b075189d602a2&url={}".format(source_url)).json()
+    return requests.get(
+        "https://api.embed.ly/1/oembed?key=421626497c5d4fc2ae6b075189d602a2&url={}".format(
+            source_url
+        )
+    ).json()
 
 
 def get_embed_link(source_url):
@@ -38,7 +48,7 @@ def get_embed_link(source_url):
     if "html" not in data:
         return source_url
 
-    url = list(BeautifulSoup(data["html"], 'html.parser').children)[0]["src"]
+    url = list(BeautifulSoup(data["html"], "html.parser").children)[0]["src"]
 
     return parse_qs(urlparse(url).query)["src"][0]
 
@@ -60,7 +70,7 @@ def remove_signed_prefix_as_needed(url):
     if url is None:
         return
     if url.startswith(SIGNED_URL_PREFIX):
-        return unquote_plus(url[len(S3_URL_PREFIX):])
+        return unquote_plus(url[len(S3_URL_PREFIX) :])
     elif url.startswith(S3_URL_PREFIX_ENCODED):
         parsed = urlparse(url.replace(S3_URL_PREFIX_ENCODED, S3_URL_PREFIX))
         return "{}://{}{}".format(parsed.scheme, parsed.netloc, parsed.path)

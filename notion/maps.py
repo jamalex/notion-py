@@ -3,12 +3,16 @@ from inspect import signature
 from .logger import logger
 from .markdown import markdown_to_notion, notion_to_markdown
 
-class mapper(property):
 
+class mapper(property):
     def __init__(self, path, python_to_api, api_to_python, *args, **kwargs):
         self.python_to_api = python_to_api
         self.api_to_python = api_to_python
-        self.path = ".".join(map(str, path)) if isinstance(path, list) or isinstance(path, tuple) else path
+        self.path = (
+            ".".join(map(str, path))
+            if isinstance(path, list) or isinstance(path, tuple)
+            else path
+        )
         super().__init__(*args, **kwargs)
 
 
@@ -41,10 +45,18 @@ def field_map(path, python_to_api=lambda x: x, api_to_python=lambda x: x):
             kwargs["client"] = self._client
         self.set(path, python_to_api(value), **kwargs)
 
-    return mapper(fget=fget, fset=fset, path=path, python_to_api=python_to_api, api_to_python=api_to_python)
+    return mapper(
+        fget=fget,
+        fset=fset,
+        path=path,
+        python_to_api=python_to_api,
+        api_to_python=api_to_python,
+    )
 
 
-def property_map(name, python_to_api=lambda x: x, api_to_python=lambda x: x, markdown=True):
+def property_map(
+    name, python_to_api=lambda x: x, api_to_python=lambda x: x, markdown=True
+):
     """
     Similar to `field_map`, except it works specifically with the data under the "properties" field
     in the API's block table, and just takes a single name to specify which subkey to reference.
