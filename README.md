@@ -159,6 +159,7 @@ row.files = ["https://www.birdlife.org/sites/default/files/styles/1600/public/sl
 row.person = client.current_user
 row.tags = ["A", "C"]
 row.where_to = "https://learningequality.org"
+row.due = NotionDate(datetime.date.today(), None, row.due.timezone, NotionReminder('08:00', 'day', 0))
 
 # Run a filtered/sorted query using a view's default parameters
 result = cv.default_query().execute()

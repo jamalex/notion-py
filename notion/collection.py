@@ -1,6 +1,6 @@
 from cached_property import cached_property
 from copy import deepcopy
-from datetime import datetime, date
+from datetime import datetime, date, time
 from tzlocal import get_localzone
 
 from .block import Block, PageBlock, Children, CollectionViewBlock
@@ -12,16 +12,52 @@ from .records import Record
 from .utils import add_signed_prefix_as_needed, remove_signed_prefix_as_needed, slugify
 
 
+class NotionReminder(object):
+    rtime = None
+    unit = None
+    value = None
+
+    def __init__(self, rtime=None, unit=None, value=None):
+        self.rtime = rtime
+        self.unit = unit
+        self.value = value
+
+    @classmethod
+    def from_notion(cls, obj):
+        if isinstance(obj, dict):
+            data = obj
+        else:
+            return None
+        rtime = datetime.strptime(data.get('time'), '%H:%M').time()
+        unit = data.get('unit')
+        value = data.get('value')
+
+        return cls(rtime=rtime, unit=unit, value=value)
+
+    def to_notion(self):
+        if isinstance(self, NotionReminder):
+            if isinstance(self.rtime, time):
+                rtime = self.rtime.strftime("%H:%M")
+            else:
+                rtime = self.rtime
+            data = {"time": rtime, "unit": self.unit, "value": self.value}
+        else:
+            data = None
+        return data
+
+
 class NotionDate(object):
 
     start = None
     end = None
     timezone = None
+    reminder = None
 
-    def __init__(self, start, end=None, timezone=None):
+    def __init__(self, start, end=None, timezone=None, reminder=None):
         self.start = start
         self.end = end
         self.timezone = timezone
+        self.reminder = reminder
 
     @classmethod
     def from_notion(cls, obj):
@@ -33,8 +69,9 @@ class NotionDate(object):
             return None
         start = cls._parse_datetime(data.get("start_date"), data.get("start_time"))
         end = cls._parse_datetime(data.get("end_date"), data.get("end_time"))
+        reminder = NotionReminder.from_notion(data.get("reminder"))
         timezone = data.get("timezone")
-        return cls(start, end=end, timezone=timezone)
+        return cls(start, end=end, timezone=timezone, reminder=reminder)
 
     @classmethod
     def _parse_datetime(cls, date_str, time_str):
@@ -75,7 +112,12 @@ class NotionDate(object):
         if not start_date:
             return []
 
-        data = {"type": self.type(), "start_date": start_date}
+        data = {"type": self.type()}
+
+        if self.reminder:
+            data["reminder"] = self.reminder.to_notion()
+
+        data["start_date"] = start_date
 
         if end_date:
             data["end_date"] = end_date
