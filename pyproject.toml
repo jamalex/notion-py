@@ -1,0 +1,4 @@
+[tool.portray]
+name = "notion-py"
+output_dir = "documentation_website"
+modules = ["notion.client", "notion.block"]
