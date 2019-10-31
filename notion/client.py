@@ -28,8 +28,17 @@ from .utils import extract_id, now
 
 
 def create_session():
+    """
+    retry on 502
+    """
     session = Session()
-    retry = Retry(total=5, backoff_factor=0.3, status_forcelist=(502,))
+    retry = Retry(
+        status=5,
+        backoff_factor=0.3,
+        status_forcelist=(502,),
+        # CAUTION: adding 'POST' to this list which is not technically idempotent
+        method_whitelist=("POST", "HEAD", "TRACE", "GET", "PUT", "OPTIONS", "DELETE"),
+    )
     adapter = HTTPAdapter(max_retries=retry)
     session.mount("https://", adapter)
     return session
