@@ -6,6 +6,8 @@ import uuid
 from requests import Session, HTTPError
 from requests.cookies import cookiejar_from_dict
 from urllib.parse import urljoin
+from requests.adapters import HTTPAdapter
+from requests.packages.urllib3.util.retry import Retry
 
 from .block import Block, BLOCK_TYPES
 from .collection import (
@@ -25,6 +27,14 @@ from .user import User
 from .utils import extract_id, now
 
 
+def create_session():
+    session = Session()
+    retry = Retry(total=5, backoff_factor=0.3, status_forcelist=(502,))
+    adapter = HTTPAdapter(max_retries=retry)
+    session.mount("https://", adapter)
+    return session
+
+
 class NotionClient(object):
     """
     This is the entry point to using the API. Create an instance of this class, passing it the value of the
@@ -33,7 +43,7 @@ class NotionClient(object):
     """
 
     def __init__(self, token_v2, monitor=True, start_monitoring=True, cache_key=None):
-        self.session = Session()
+        self.session = create_session()
         self.session.cookies = cookiejar_from_dict({"token_v2": token_v2})
         cache_key = cache_key or hashlib.sha256(token_v2.encode()).hexdigest()
         self._store = RecordStore(self, cache_key=cache_key)
