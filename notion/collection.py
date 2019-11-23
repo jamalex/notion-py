@@ -152,12 +152,30 @@ class Collection(Record):
 
         return row
 
-    def get_rows(self):
+    def get_rows(self, **kwargs):
         rows = []
-        for row_id in self._client._store.get_collection_rows(self.id):
-            row = self._client.get_block(row_id)
-            row.__dict__["collection"] = self
-            rows.append(row)
+
+        # kwargs allow for optional arguments!
+        search = kwargs.get('search')
+
+        if(search):
+            for row_id in self._client._store.get_collection_rows(self.id):
+                row = self._client.get_block(row_id)
+                row.__dict__["collection"] = self
+
+                # get the title property (name)
+                title = row.get_property("title")
+
+                # do a search
+                if search.lower() in title.lower():
+                    rows.append(row)
+        else:
+            # If it doesn't contain any search argument, just push it
+            for row_id in self._client._store.get_collection_rows(self.id):
+                row = self._client.get_block(row_id)
+                row.__dict__["collection"] = self
+                rows.append(row)
+
         return rows
 
     def _convert_diff_to_changelist(self, difference, old_val, new_val):
