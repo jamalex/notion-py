@@ -9,3 +9,5 @@ dist/
 .env
 .venv
 Pipfile
+/.idea
+/notion-py.iml
