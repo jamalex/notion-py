@@ -157,7 +157,7 @@ class NotionClient(object):
         self._store.call_get_record_values(**kwargs)
 
     def refresh_collection_rows(self, collection_id):
-        row_ids = self.search_pages_with_parent(collection_id)
+        row_ids = [row.id for row in self.get_collection(collection_id).get_rows()]
         self._store.set_collection_rows(collection_id, row_ids)
 
     def post(self, endpoint, data):
