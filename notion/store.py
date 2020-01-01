@@ -7,7 +7,7 @@ from collections import defaultdict
 from copy import deepcopy
 from dictdiffer import diff
 from inspect import signature
-from multiprocessing import Lock
+from threading import Lock
 from pathlib import Path
 from tzlocal import get_localzone
 
