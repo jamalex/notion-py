@@ -102,6 +102,10 @@ def run_live_smoke_test(token_v2, parent_page_url_or_id):
     result = view.default_query().execute()
     assert row in result
 
+    # query the collection directly
+    assert row in cvb.collection.get_rows(search="reference")
+    assert row not in cvb.collection.get_rows(search="penguins")
+
     # Run an "aggregation" query
     aggregate_params = [
         {"property": "estimated_value", "aggregation_type": "sum", "id": "total_value"}

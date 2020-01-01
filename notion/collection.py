@@ -3,7 +3,7 @@ from copy import deepcopy
 from datetime import datetime, date
 from tzlocal import get_localzone
 
-from .block import Block, PageBlock, Children
+from .block import Block, PageBlock, Children, CollectionViewBlock
 from .logger import logger
 from .maps import property_map, field_map
 from .markdown import markdown_to_notion, notion_to_markdown
@@ -152,13 +152,21 @@ class Collection(Record):
 
         return row
 
-    def get_rows(self):
-        rows = []
-        for row_id in self._client._store.get_collection_rows(self.id):
-            row = self._client.get_block(row_id)
-            row.__dict__["collection"] = self
-            rows.append(row)
-        return rows
+    def _get_a_collection_view(self):
+        """
+        Get an arbitrary collection view for this collection, to allow querying.
+        """
+        assert self.get("parent_table") == "block"
+        parent = self._client.get_block(self.get("parent_id"))
+        assert isinstance(parent, CollectionViewBlock)
+        assert len(parent.views) > 0
+        return parent.views[0]
+
+    def query(self, **kwargs):
+        return CollectionQuery(self, self._get_a_collection_view(), **kwargs).execute()
+
+    def get_rows(self, **kwargs):
+        return self.query(**kwargs)
 
     def _convert_diff_to_changelist(self, difference, old_val, new_val):
 
