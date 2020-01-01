@@ -9,6 +9,10 @@ from slugify import slugify as _dash_slugify
 from .settings import BASE_URL, SIGNED_URL_PREFIX, S3_URL_PREFIX, S3_URL_PREFIX_ENCODED
 
 
+class InvalidNotionIdentifier(Exception):
+    pass
+
+
 def now():
     return int(datetime.now().timestamp() * 1000)
 
@@ -20,8 +24,8 @@ def extract_id(url_or_id):
     block in a page), it will instead be the ID of that block. If it's already in ID format,
     it will be passed right through.
     """
-    if url_or_id.startswith("http"):
-        assert url_or_id.startswith(BASE_URL)
+    input_value = url_or_id
+    if url_or_id.startswith(BASE_URL):
         url_or_id = (
             url_or_id.split("#")[-1]
             .split("/")[-1]
@@ -29,7 +33,10 @@ def extract_id(url_or_id):
             .split("?")[0]
             .split("-")[-1]
         )
-    return str(uuid.UUID(url_or_id))
+    try:
+        return str(uuid.UUID(url_or_id))
+    except ValueError:
+        raise InvalidNotionIdentifier(input_value)
 
 
 def get_embed_data(source_url):
