@@ -149,15 +149,24 @@ class Collection(Record):
         with self._client.as_atomic_transaction():
             for key, val in kwargs.items():
                 setattr(row, key, val)
+            # make sure the new record is inserted at the end of each view
+            for view in self.parent.views:
+                if isinstance(view, CalendarView):
+                    continue
+                view.set("page_sort", view.get("page_sort", []) + [row_id])
 
         return row
+
+    @property
+    def parent(self):
+        assert self.get("parent_table") == "block"
+        return self._client.get_block(self.get("parent_id"))
 
     def _get_a_collection_view(self):
         """
         Get an arbitrary collection view for this collection, to allow querying.
         """
-        assert self.get("parent_table") == "block"
-        parent = self._client.get_block(self.get("parent_id"))
+        parent = self.parent
         assert isinstance(parent, CollectionViewBlock)
         assert len(parent.views) > 0
         return parent.views[0]
