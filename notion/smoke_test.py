@@ -77,10 +77,12 @@ def run_live_smoke_test(token_v2, parent_page_url_or_id):
     cvb.title = "My data!"
     view = cvb.views.add_new(view_type="table")
 
+    special_code = uuid.uuid4().hex[:8]
+
     row = cvb.collection.add_row()
     assert row.person == []
     row.name = "Just some data"
-    row.title = "Can reference 'title' field too!"
+    row.title = "Can reference 'title' field too! " + special_code
     assert row.name == row.title
     row.check_yo_self = True
     row.estimated_value = None
@@ -103,8 +105,12 @@ def run_live_smoke_test(token_v2, parent_page_url_or_id):
     assert row in result
 
     # query the collection directly
-    assert row in cvb.collection.get_rows(search="reference")
-    assert row not in cvb.collection.get_rows(search="penguins")
+    assert row in cvb.collection.get_rows(search=special_code)
+    assert row not in cvb.collection.get_rows(search="otherworldly penguins")
+
+    # search the entire space
+    assert row in client.search_blocks(search=special_code)
+    assert row not in client.search_blocks(search="otherworldly penguins")
 
     # Run an "aggregation" query
     aggregate_params = [
