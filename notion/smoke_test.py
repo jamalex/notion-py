@@ -20,9 +20,11 @@ def run_live_smoke_test(token_v2, parent_page_url_or_id):
     col_list = page.children.add_new(ColumnListBlock)
     col1 = col_list.children.add_new(ColumnBlock)
     col2 = col_list.children.add_new(ColumnBlock)
-    col1.children.add_new(
+    col1kid = col1.children.add_new(
         TextBlock, title="Some formatting: *italic*, **bold**, ***both***!"
     )
+    assert col1kid.title.replace("_", "*") == "Some formatting: *italic*, **bold**, ***both***!"
+    assert col1kid.title_plaintext == "Some formatting: italic, bold, both!"
     col2.children.add_new(TodoBlock, title="I should be unchecked")
     col2.children.add_new(TodoBlock, title="I should be checked", checked=True)
 

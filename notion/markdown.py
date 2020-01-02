@@ -118,6 +118,9 @@ def markdown_to_notion(markdown):
         markdown = markdown.replace("~~", "<s>", 1)
         markdown = markdown.replace("~~", "</s>", 1)
 
+    # we don't want to touch dashes, so temporarily replace them here
+    markdown = markdown.replace("-", "⸻")
+
     parser = commonmark.Parser()
     ast = prepare(parser.parse(markdown))
 
@@ -172,6 +175,10 @@ def markdown_to_notion(markdown):
             consolidated[-1][0] += item[0]
         elif item[0]:
             consolidated.append(item)
+
+    # reinstate the regular dashes
+    for item in consolidated:
+        item[0] = item[0].replace("⸻", "-")
 
     return consolidated
 
@@ -272,3 +279,38 @@ def notion_to_markdown(notion):
         full_markdown += final_markdown
 
     return full_markdown
+
+
+def notion_to_plaintext(notion, client=None):
+
+    plaintext = ""
+
+    for item in notion or []:
+
+        text = item[0]
+        formats = item[1] if len(item) == 2 else []
+
+        if text == "‣":
+
+            for f in formats:
+                if f[0] == "p":  # page link
+                    if client is None:
+                        plaintext += "page:" + f[1]
+                    else:
+                        plaintext += client.get_block(f[1]).title_plaintext
+                elif f[0] == "u":  # user link
+                    if client is None:
+                        plaintext += "user:" + f[1]
+                    else:
+                        plaintext += client.get_user(f[1]).full_name
+
+            continue
+
+        plaintext += text
+
+    return plaintext
+
+
+def plaintext_to_notion(plaintext):
+
+    return [[plaintext]]

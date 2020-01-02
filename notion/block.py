@@ -11,6 +11,7 @@ from copy import deepcopy
 
 from .logger import logger
 from .maps import property_map, field_map, mapper
+from .markdown import plaintext_to_notion, notion_to_plaintext
 from .operations import build_operation
 from .records import Record
 from .settings import S3_URL_PREFIX, BASE_URL
@@ -457,6 +458,7 @@ class ColumnBlock(Block):
 class BasicBlock(Block):
 
     title = property_map("title")
+    title_plaintext = property_map("title", python_to_api=plaintext_to_notion, api_to_python=notion_to_plaintext, markdown=False)
     color = field_map("format.block_color")
 
     def convert_to_type(self, new_type):

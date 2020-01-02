@@ -43,7 +43,7 @@ def field_map(path, python_to_api=lambda x: x, api_to_python=lambda x: x):
         kwargs = {}
         if "client" in signature(python_to_api).parameters:
             kwargs["client"] = self._client
-        self.set(path, python_to_api(value), **kwargs)
+        self.set(path, python_to_api(value, **kwargs))
 
     return mapper(
         fget=fget,
@@ -65,17 +65,23 @@ def property_map(
     this representation into commonmark-compatible markdown, and back again when saving.
     """
 
-    def py2api(x):
-        x = python_to_api(x)
+    def py2api(x, client=None):
+        kwargs = {}
+        if "client" in signature(python_to_api).parameters:
+            kwargs["client"] = client
+        x = python_to_api(x, **kwargs)
         if markdown:
             x = markdown_to_notion(x)
         return x
 
-    def api2py(x):
+    def api2py(x, client=None):
         x = x or [[""]]
         if markdown:
             x = notion_to_markdown(x)
-        return api_to_python(x)
+        kwargs = {}
+        if "client" in signature(api_to_python).parameters:
+            kwargs["client"] = client
+        return api_to_python(x, **kwargs)
 
     return field_map(["properties", name], python_to_api=py2api, api_to_python=api2py)
 
