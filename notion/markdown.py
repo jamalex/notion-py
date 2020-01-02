@@ -272,3 +272,38 @@ def notion_to_markdown(notion):
         full_markdown += final_markdown
 
     return full_markdown
+
+
+def notion_to_plaintext(notion, client=None):
+
+    plaintext = ""
+
+    for item in notion or []:
+
+        text = item[0]
+        formats = item[1] if len(item) == 2 else []
+
+        if text == "‣":
+
+            for f in formats:
+                if f[0] == "p":  # page link
+                    if client is None:
+                        plaintext += "page:" + f[1]
+                    else:
+                        plaintext += client.get_block(f[1]).title_plaintext
+                elif f[0] == "u":  # user link
+                    if client is None:
+                        plaintext += "user:" + f[1]
+                    else:
+                        plaintext += client.get_user(f[1]).full_name
+
+            continue
+
+        plaintext += text
+
+    return plaintext
+
+
+def plaintext_to_notion(plaintext):
+
+    return [[plaintext]]
