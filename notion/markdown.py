@@ -118,6 +118,9 @@ def markdown_to_notion(markdown):
         markdown = markdown.replace("~~", "<s>", 1)
         markdown = markdown.replace("~~", "</s>", 1)
 
+    # we don't want to touch dashes, so temporarily replace them here
+    markdown = markdown.replace("-", "⸻")
+
     parser = commonmark.Parser()
     ast = prepare(parser.parse(markdown))
 
@@ -172,6 +175,10 @@ def markdown_to_notion(markdown):
             consolidated[-1][0] += item[0]
         elif item[0]:
             consolidated.append(item)
+
+    # reinstate the regular dashes
+    for item in consolidated:
+        item[0] = item[0].replace("⸻", "-")
 
     return consolidated
 
