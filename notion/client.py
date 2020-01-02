@@ -202,7 +202,7 @@ class NotionClient(object):
             self._transaction_operations += operations
         else:
             data = {"operations": operations}
-            self.post("submitTransaction", data).json()
+            self.post("submitTransaction", data)
             self._store.run_local_operations(operations)
 
     def query_collection(self, *args, **kwargs):
@@ -237,7 +237,7 @@ class NotionClient(object):
             "query": search,
             "table": "space",
             "id": self.current_space.id,
-            "limit": limit
+            "limit": limit,
         }
         response = self.post("searchBlocks", data).json()
         self._store.store_recordmap(response["recordMap"])
