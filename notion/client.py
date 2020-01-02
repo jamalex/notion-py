@@ -232,6 +232,17 @@ class NotionClient(object):
         self._store.store_recordmap(response["recordMap"])
         return response["results"]
 
+    def search_blocks(self, search, limit=25):
+        data = {
+            "query": search,
+            "table": "space",
+            "id": self.current_space.id,
+            "limit": limit
+        }
+        response = self.post("searchBlocks", data).json()
+        self._store.store_recordmap(response["recordMap"])
+        return [self.get_block(block_id) for block_id in response["results"]]
+
     def create_record(self, table, parent, **kwargs):
 
         # make up a new UUID; apparently we get to choose our own!
