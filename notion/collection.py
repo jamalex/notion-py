@@ -344,6 +344,8 @@ class CollectionRowBlock(PageBlock):
             super().__setattr__(attname, value)
         elif attname in self._get_property_slugs():
             self.set_property(attname, value)
+        elif slugify(attname) in self._get_property_slugs():
+            self.set_property(slugify(attname), value)
         elif hasattr(self, attname):
             super().__setattr__(attname, value)
         else:
