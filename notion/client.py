@@ -72,6 +72,11 @@ class NotionClient(object):
         self._store.store_recordmap(records)
         self.current_user = self.get_user(list(records["notion_user"].keys())[0])
         self.current_space = self.get_space(list(records["space"].keys())[0])
+        return records
+
+    def get_top_level_pages(self):
+        records = self._update_user_info()
+        return [self.get_block(bid) for bid in records["block"].keys()]
 
     def get_record_data(self, table, id, force_refresh=False):
         return self._store.get(table, id, force_refresh=force_refresh)
