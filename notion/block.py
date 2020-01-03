@@ -1,4 +1,3 @@
-import logging
 import mimetypes
 import os
 import random
@@ -139,7 +138,7 @@ class Children(object):
                     if hasattr(block, key):
                         setattr(block, key, val)
                     else:
-                        logging.warning(
+                        logger.warning(
                             "{} does not have attribute '{}' to be set; skipping.".format(
                                 block, key
                             )
