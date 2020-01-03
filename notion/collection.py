@@ -202,6 +202,14 @@ class CollectionView(Record):
 
     _table = "collection_view"
 
+    name = field_map("name")
+    type = field_map("type")
+
+    @property
+    def parent(self):
+        assert self.get("parent_table", "block")
+        return self._client.get_block(self.get("parent_id"))
+
     def __init__(self, *args, collection, **kwargs):
         self.collection = collection
         super().__init__(*args, **kwargs)

@@ -760,7 +760,8 @@ class CollectionViewBlockViews(Children):
 
         # At this point, the view does not see to be completely initialized yet.
         # Hack: wait a bit before e.g. setting a query.
-        time.sleep(3)
+        # Note: temporarily disabling this sleep to see if the issue reoccurs.
+        # time.sleep(3)
         return view
 
 
