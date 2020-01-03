@@ -202,6 +202,11 @@ python run_smoke_test.py
 
 We're a [small nonprofit](https://learningequality.org/) with [global impact](https://learningequality.org/ka-lite/map/), building [exciting tech](https://learningequality.org/kolibri/)! We're currently hiring [engineers](https://grnh.se/1edb335f1) and [other roles](https://grnh.se/2dd2be551) -- come join us!
 
+# Related Projects
+
+- [md2notion](https://github.com/Cobertos/md2notion): import Markdown files to Notion
+- [notion-export-ics](https://github.com/evertheylen/notion-export-ics): Export Notion Databases to ICS calendar files
+
 # TODO
 
 * Cloning pages hierarchically
