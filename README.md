@@ -4,8 +4,8 @@ Unofficial Python 3 client for Notion.so API v3.
 
 - Object-oriented interface (mapping database tables to Python classes/attributes)
 - Automatic conversion between internal Notion formats and appropriate Python objects
-- Local cache of data in a unified data store
-- Real-time reactive two-way data binding (changing Python object -> live updating of Notion UI, and vice-versa)
+- Local cache of data in a unified data store *(Note: disk cache now disabled by default; to enable, add `enable_caching=True` when initializing `NotionClient`)*
+- Real-time reactive two-way data binding (changing Python object -> live updating of Notion UI, and vice-versa) *(Note: Notion->Python automatic updating is currently broken and hence disabled by default; call `my_block.refresh()` to update, in the meantime, while monitoring is being fixed)
 - Callback system for responding to changes in Notion (e.g. for triggering actions, updating another API, etc)
 
 ![](https://raw.githubusercontent.com/jamalex/notion-py/master/ezgif-3-a935fdcb7415.gif)
@@ -200,7 +200,7 @@ python run_smoke_test.py
 
 # _Quick plug: Learning Equality is hiring!_
 
-We're a [small nonprofit](https://learningequality.org/) with [global impact](https://learningequality.org/ka-lite/map/), building [exciting tech](https://learningequality.org/kolibri/)! We're currently hiring [engineers](https://grnh.se/1edb335f1) and [other roles](https://grnh.se/2dd2be551) -- come join us!
+We're a [small nonprofit](https://learningequality.org/) with [global impact](https://learningequality.org/ka-lite/map/), building [exciting tech](https://learningequality.org/kolibri/)! We're currently [hiring](https://grnh.se/6epyi21) -- come join us!
 
 # Related Projects
 
