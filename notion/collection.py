@@ -534,11 +534,14 @@ class CollectionRowBlock(PageBlock):
         if prop["type"] in ["title", "text"]:
             if not val:
                 val = ""
-            if not isinstance(val, str):
+            if not isinstance(val, (str, list)):
                 raise TypeError(
                     "Value passed to property '{}' must be a string.".format(identifier)
                 )
-            val = markdown_to_notion(val)
+            if isinstance(val, list):
+                val = val
+            else:
+                val = markdown_to_notion(val)
         if prop["type"] in ["number"]:
             if val is not None:
                 if not isinstance(val, float) and not isinstance(val, int):
