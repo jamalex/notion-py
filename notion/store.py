@@ -77,9 +77,7 @@ class RecordStore(object):
     def __init__(self, client, cache_key=None):
         self._mutex = Lock()
         self._client = client
-        self._cache_key = cache_key or str(
-            int(datetime.datetime.now().timestamp() * 1000)
-        )
+        self._cache_key = cache_key
         self._values = defaultdict(lambda: defaultdict(dict))
         self._role = defaultdict(lambda: defaultdict(str))
         self._collection_row_ids = {}
@@ -120,6 +118,8 @@ class RecordStore(object):
         )
 
     def _load_cache(self, attributes=("_values", "_role", "_collection_row_ids")):
+        if not self._cache_key:
+            return
         for attr in attributes:
             try:
                 with open(self._get_cache_path(attr)) as f:
@@ -161,6 +161,8 @@ class RecordStore(object):
         return self._collection_row_ids.get(collection_id, [])
 
     def _save_cache(self, attribute):
+        if not self._cache_key:
+            return
         with open(self._get_cache_path(attribute), "w") as f:
             json.dump(getattr(self, attribute), f)
 
