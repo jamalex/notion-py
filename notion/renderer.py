@@ -1,8 +1,15 @@
 import markdown2
 import requests
+import dominate
+from dominate.tags import *
 
 from .block import *
 
+class nullcontext:
+	def __enter__(self):
+		pass
+	def __exit__(self,a,b,c):
+		pass
 
 class BaseRenderer(object):
 
@@ -10,7 +17,9 @@ class BaseRenderer(object):
 		self.start_block = start_block
 
 	def render(self):
-		return self.render_block(self.start_block)
+		with div() as d:
+			self.render_block(self.start_block)
+		return d
 
 	def calculate_child_indent(self, block):
 		if block.type == "page":
@@ -18,7 +27,7 @@ class BaseRenderer(object):
 		else:
 			return 1
 
-	def render_block(self, block, level=0, preblock=None, postblock=None):
+	def render_block(self, block, level=0):
 		assert isinstance(block, Block)
 		type_renderer = getattr(self, "handle_" + block._type, None)
 		if not callable(type_renderer):
@@ -26,21 +35,12 @@ class BaseRenderer(object):
 				type_renderer = self.handle_default
 			else:
 				raise Exception("No handler for block type '{}'.".format(block._type))
-		pretext = type_renderer(block, level=level, preblock=preblock, postblock=postblock)
-		if isinstance(pretext, tuple):
-			pretext, posttext = pretext
-		else:
-			posttext = ""
-		return pretext + self.render_children(block, level=level+self.calculate_child_indent(block)) + posttext
-
-	def render_children(self, block, level):
-		kids = block.children
-		if not kids:
-			return ""
-		text = ""
-		for i in range(len(kids)):
-			text += self.render_block(kids[i], level=level)
-		return text
+		#Render ourselves to an HTML element and then add all our children to it
+		selfEl = type_renderer(block, level=level)
+		with selfEl if isinstance(selfEl, dominate.dom_tag.dom_tag) else nullcontext():
+			for child in block.children:
+				self.render_block(child, level=level+self.calculate_child_indent(block))
+		return selfEl
 
 
 bookmark_template = """
@@ -81,161 +81,127 @@ callout_template = """
 """
 
 class BaseHTMLRenderer(BaseRenderer):
+	def handle_default(self, block, level=0):
+		p(block.title)
 
-	def create_opening_tag(self, tagname, attributes={}):
-		attrs = "".join(' {}="{}"'.format(key, val) for key, val in attributes.items())
-		return "<{tagname}{attrs}>".format(tagname=tagname, attrs=attrs)
+	def handle_divider(self, block, level=0):
+		hr()
 
-	def wrap_in_tag(self, block, tagname, fieldname="title", attributes={}):
-		opentag = self.create_opening_tag(tagname, attributes)
-		innerhtml = markdown2.markdown(getattr(block, fieldname))
-		return "{opentag}{innerhtml}</{tagname}>".format(opentag=opentag, tagname=tagname, innerhtml=innerhtml)
+	def handle_column_list(self, block, level=0):
+		return div(style='display: flex;', _class='column-list')
 
-	def left_margin_for_level(self, level):
-		return {"display": "margin-left: {}px;".format(level * 20)}
+	def handle_column(self, block, level=0):
+		return div(_class='column')
 
-	def handle_default(self, block, level=0, preblock=None, postblock=None):
-		return self.wrap_in_tag(block, "p", attributes=self.left_margin_for_level(level))
+	def handle_to_do(self, block, level=0):
+		id = f'chk_{block.id}'
+		input(type='checkbox', id=id, checked=block.checked, title=block.title).add(
+			label(_for=id)).add(br())
 
-	def handle_divider(self, block, level=0, preblock=None, postblock=None):
-		return "<hr/>"
+	def handle_code(self, block, level=0):
+		code(block.title)
 
-	def handle_column_list(self, block, level=0, preblock=None, postblock=None):
-		return '<div style="display: flex; padding-top: 12px; padding-bottom: 12px;">', '</div>'
+	def handle_factory(self, block, level=0):
+		pass
 
-	def handle_column(self, block, level=0, preblock=None, postblock=None):
-		buffer = (len(block.parent.children) - 1) * 46
-		width = block.get("format.column_ratio")
-		return '<div style="flex-grow: 0; flex-shrink: 0; width: calc((100% - {}px) * {});">'.format(buffer, width), '</div>'
+	def handle_header(self, block, level=0):
+		h2(block.title)
 
-	def handle_to_do(self, block, level=0, preblock=None, postblock=None):
-		return '<input type="checkbox" id="{id}" name="{id}"{checked}><label for="{id}">{title}</label><br/>'.format(
-			id="chk_" + block.id,
-			checked=" checked" if block.checked else "",
-			title=block.title,
-		)
+	def handle_sub_header(self, block, level=0):
+		h3(block.title)
 
-	def handle_code(self, block, level=0, preblock=None, postblock=None):
-		return self.wrap_in_tag(block, "code", attributes=self.left_margin_for_level(level))
+	def handle_sub_sub_header(self, block, level=0):
+		h4(block.title)
 
-	def handle_factory(self, block, level=0, preblock=None, postblock=None):
-		return ""
+	def handle_page(self, block, level=0):
+		h1(block.title)
 
-	def handle_header(self, block, level=0, preblock=None, postblock=None):
-		return self.wrap_in_tag(block, "h2", attributes=self.left_margin_for_level(level))
+	def handle_bulleted_list(self, block, level=0):
+		ctx = next(dom_tag._with_contexts.values())
+		with ctx.children[-1] if isinstance(ctx.children[-1], ul) else ul():
+			li(block.title)
 
-	def handle_sub_header(self, block, level=0, preblock=None, postblock=None):
-		return self.wrap_in_tag(block, "h3", attributes=self.left_margin_for_level(level))
+	def handle_numbered_list(self, block, level=0):
+		ctx = next(dom_tag._with_contexts.values())
+		with ctx.children[-1] if isinstance(ctx.children[-1], ol) else ol():
+			li(block.title)
 
-	def handle_sub_sub_header(self, block, level=0, preblock=None, postblock=None):
-		return self.wrap_in_tag(block, "h4", attributes=self.left_margin_for_level(level))
+	def handle_toggle(self, block, level=0):
+		details(summary(block.title))
 
-	def handle_page(self, block, level=0, preblock=None, postblock=None):
-		return self.wrap_in_tag(block, "h1", attributes=self.left_margin_for_level(level))
+	def handle_quote(self, block, level=0):
+		blockquote(block.title)
 
-	def handle_bulleted_list(self, block, level=0, preblock=None, postblock=None):
-		text = ""
-		if preblock is None or preblock.type != "bulleted_list":
-			text = self.create_opening_tag("ul", attributes=self.left_margin_for_level(level))
-		text += self.wrap_in_tag(block, "li")
-		if postblock is None or postblock.type != "bulleted_list":
-			text += "</ul>"
-		return text
+	def handle_text(self, block, level=0):
+		return self.handle_default(block=block, level=level)
 
-	def handle_numbered_list(self, block, level=0, preblock=None, postblock=None):
-		text = ""
-		if preblock is None or preblock.type != "numbered_list":
-			text = self.create_opening_tag("ol", attributes=self.left_margin_for_level(level))
-		text += self.wrap_in_tag(block, "li")
-		if postblock is None or postblock.type != "numbered_list":
-			text += "</ol>"
-		return text
+	def handle_equation(self, block, level=0):
+		p(img(src=f'https://chart.googleapis.com/chart?cht=tx&chl={block.latex}'))
 
-	def handle_toggle(self, block, level=0, preblock=None, postblock=None):
-		innerhtml = markdown2.markdown(block.title)
-		opentag = self.create_opening_tag("details", attributes=self.left_margin_for_level(level))
-		return '{opentag}<summary>{innerhtml}</summary>'.format(opentag=opentag, innerhtml=innerhtml), '</details>'
+	def handle_embed(self, block, level=0):
+		iframe(src=block.display_source or block.source, frameborder=0,
+			sandbox='allow-scripts allow-popups allow-forms allow-same-origin',
+			allowfullscreen='')
 
-	def handle_quote(self, block, level=0, preblock=None, postblock=None):
-		return self.wrap_in_tag(block, "blockquote", attributes=self.left_margin_for_level(level))
+	def handle_video(self, block, level=0):
+		return self.handle_embed(block=block, level=level)
 
-	def handle_text(self, block, level=0, preblock=None, postblock=None):
-		return self.handle_default(block=block, level=level, preblock=preblock, postblock=postblock)
+	def handle_file(self, block, level=0):
+		return self.handle_embed(block=block, level=level)
 
-	def handle_equation(self, block, level=0, preblock=None, postblock=None):
-		text = self.create_opening_tag("p", attributes=self.left_margin_for_level(level))
-		return text + '<img src="https://chart.googleapis.com/chart?cht=tx&chl={}"/></p>'.format(block.latex)
+	def handle_audio(self, block, level=0):
+		return self.handle_embed(block=block, level=level)
 
-	def handle_embed(self, block, level=0, preblock=None, postblock=None):
-		iframetag = self.create_opening_tag("iframe", attributes={
-			"src": block.display_source or block.source,
-			"frameborder": 0,
-			"sandbox": "allow-scripts allow-popups allow-forms allow-same-origin",
-			"allowfullscreen": "",
-			"style": "width: {width}px; height: {height}px; border-radius: 1px;".format(width=block.width, height=block.height),
-		})
-		return '<div style="text-align: center;">' + iframetag + "</iframe></div>"
+	def handle_pdf(self, block, level=0):
+		return self.handle_embed(block=block, level=level)
 
-	def handle_video(self, block, level=0, preblock=None, postblock=None):
-		return self.handle_embed(block=block, level=level, preblock=preblock, postblock=postblock)
+	def handle_image(self, block, level=0):
+		return self.handle_embed(block=block, level=level)
 
-	def handle_file(self, block, level=0, preblock=None, postblock=None):
-		return self.handle_embed(block=block, level=level, preblock=preblock, postblock=postblock)
-
-	def handle_audio(self, block, level=0, preblock=None, postblock=None):
-		return self.handle_embed(block=block, level=level, preblock=preblock, postblock=postblock)
-
-	def handle_pdf(self, block, level=0, preblock=None, postblock=None):
-		return self.handle_embed(block=block, level=level, preblock=preblock, postblock=postblock)
-
-	def handle_image(self, block, level=0, preblock=None, postblock=None):
-		return self.handle_embed(block=block, level=level, preblock=preblock, postblock=postblock)
-
-	def handle_bookmark(self, block, level=0, preblock=None, postblock=None):
+	def handle_bookmark(self, block, level=0):
 		return bookmark_template.format(link=block.link, title=block.title, description=block.description, icon=block.bookmark_icon, cover=block.bookmark_cover)
 
-	def handle_link_to_collection(self, block, level=0, preblock=None, postblock=None):
-		return self.wrap_in_tag(block, "p", attributes={"href": "https://www.notion.so/" + block.id.replace("-", "")})
+	def handle_link_to_collection(self, block, level=0):
+		a(href=f'https://www.notion.so/{block.id.replace("-", "")}')
 
-	def handle_breadcrumb(self, block, level=0, preblock=None, postblock=None):
-		return self.wrap_in_tag(block, "p", attributes=self.left_margin_for_level(level))
+	def handle_breadcrumb(self, block, level=0):
+		p(block.title)
 
-	def handle_collection_view(self, block, level=0, preblock=None, postblock=None):
-		return self.wrap_in_tag(block, "p", attributes={"href": "https://www.notion.so/" + block.id.replace("-", "")})
+	def handle_collection_view(self, block, level=0):
+		a(href=f'https://www.notion.so/{block.id.replace("-", "")}')
 
-	def handle_collection_view_page(self, block, level=0, preblock=None, postblock=None):
-		return self.wrap_in_tag(block, "p", attributes={"href": "https://www.notion.so/" + block.id.replace("-", "")})
+	def handle_collection_view_page(self, block, level=0):
+		a(href=f'https://www.notion.so/{block.id.replace("-", "")}')
 
-	def handle_framer(self, block, level=0, preblock=None, postblock=None):
-		return self.handle_embed(block=block, level=level, preblock=preblock, postblock=postblock)
+	def handle_framer(self, block, level=0):
+		return self.handle_embed(block=block, level=level)
 
-	def handle_tweet(self, block, level=0, preblock=None, postblock=None):
+	def handle_tweet(self, block, level=0):
 		return requests.get("https://publish.twitter.com/oembed?url=" + block.source).json()["html"]
 
-	def handle_gist(self, block, level=0, preblock=None, postblock=None):
-		return self.handle_embed(block=block, level=level, preblock=preblock, postblock=postblock)
+	def handle_gist(self, block, level=0):
+		return self.handle_embed(block=block, level=level)
 
-	def handle_drive(self, block, level=0, preblock=None, postblock=None):
-		return self.handle_embed(block=block, level=level, preblock=preblock, postblock=postblock)
+	def handle_drive(self, block, level=0):
+		return self.handle_embed(block=block, level=level)
 
-	def handle_figma(self, block, level=0, preblock=None, postblock=None):
-		return self.handle_embed(block=block, level=level, preblock=preblock, postblock=postblock)
+	def handle_figma(self, block, level=0):
+		return self.handle_embed(block=block, level=level)
 
-	def handle_loom(self, block, level=0, preblock=None, postblock=None):
-		return self.handle_embed(block=block, level=level, preblock=preblock, postblock=postblock)
+	def handle_loom(self, block, level=0):
+		return self.handle_embed(block=block, level=level)
 
-	def handle_typeform(self, block, level=0, preblock=None, postblock=None):
-		return self.handle_embed(block=block, level=level, preblock=preblock, postblock=postblock)
+	def handle_typeform(self, block, level=0):
+		return self.handle_embed(block=block, level=level)
 
-	def handle_codepen(self, block, level=0, preblock=None, postblock=None):
-		return self.handle_embed(block=block, level=level, preblock=preblock, postblock=postblock)
+	def handle_codepen(self, block, level=0):
+		return self.handle_embed(block=block, level=level)
 
-	def handle_maps(self, block, level=0, preblock=None, postblock=None):
-		return self.handle_embed(block=block, level=level, preblock=preblock, postblock=postblock)
+	def handle_maps(self, block, level=0):
+		return self.handle_embed(block=block, level=level)
 
-	def handle_invision(self, block, level=0, preblock=None, postblock=None):
-		return self.handle_embed(block=block, level=level, preblock=preblock, postblock=postblock)
+	def handle_invision(self, block, level=0):
+		return self.handle_embed(block=block, level=level)
 
-	def handle_callout(self, block, level=0, preblock=None, postblock=None):
+	def handle_callout(self, block, level=0):
 		return callout_template.format(icon=block.icon, title=markdown2.markdown(block.title))
-
