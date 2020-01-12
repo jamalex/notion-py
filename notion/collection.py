@@ -266,17 +266,22 @@ def _normalize_property_name(prop_name, collection):
         return prop["id"]
 
 
-def _normalize_query_list(query_list, collection):
-    query_list = deepcopy(query_list)
-    for item in query_list:
+def _normalize_query_data(data, collection, recursing=False):
+    if not recursing:
+        data = deepcopy(data)
+    if isinstance(data, list):
+        return [_normalize_query_data(item, collection, recursing=True) for item in data]
+    elif isinstance(data, dict):
         # convert slugs to property ids
-        if "property" in item:
-            item["property"] = _normalize_property_name(item["property"], collection)
+        if "property" in data:
+            data["property"] = _normalize_property_name(data["property"], collection)
         # convert any instantiated objects into their ids
-        if "value" in item:
-            if hasattr(item["value"], "id"):
-                item["value"] = item["value"].id
-    return query_list
+        if "value" in data:
+            if hasattr(data["value"], "id"):
+                data["value"] = data["value"].id
+        for key in data:
+            data[key] = _normalize_query_data(data[key], collection, recursing=True)
+    return data
 
 
 class CollectionQuery(object):
@@ -287,20 +292,21 @@ class CollectionQuery(object):
         search="",
         type="table",
         aggregate=[],
+        aggregations=[],
         filter=[],
-        filter_operator="and",
         sort=[],
         calendar_by="",
         group_by="",
     ):
+        assert not (aggregate and aggregations), "Use only one of `aggregate` or `aggregations` (old vs new format)"
         self.collection = collection
         self.collection_view = collection_view
         self.search = search
         self.type = type
-        self.aggregate = _normalize_query_list(aggregate, collection)
-        self.filter = _normalize_query_list(filter, collection)
-        self.filter_operator = filter_operator
-        self.sort = _normalize_query_list(sort, collection)
+        self.aggregate = _normalize_query_data(aggregate, collection)
+        self.aggregations = _normalize_query_data(aggregations, collection)
+        self.filter = _normalize_query_data(filter, collection)
+        self.sort = _normalize_query_data(sort, collection)
         self.calendar_by = _normalize_property_name(calendar_by, collection)
         self.group_by = _normalize_property_name(group_by, collection)
         self._client = collection._client
@@ -317,12 +323,13 @@ class CollectionQuery(object):
                 search=self.search,
                 type=self.type,
                 aggregate=self.aggregate,
+                aggregations=self.aggregations,
                 filter=self.filter,
-                filter_operator=self.filter_operator,
                 sort=self.sort,
                 calendar_by=self.calendar_by,
                 group_by=self.group_by,
             ),
+            self
         )
 
 
@@ -620,11 +627,13 @@ class Templates(Children):
 
 
 class QueryResult(object):
-    def __init__(self, collection, result):
+    def __init__(self, collection, result, query):
         self.collection = collection
         self._client = collection._client
         self._block_ids = self._get_block_ids(result)
         self.aggregates = result.get("aggregationResults", [])
+        self.aggregate_ids = [agg.get("id") for agg in (query.aggregate or query.aggregations)]
+        self.query = query
 
     def _get_block_ids(self, result):
         return result["blockIds"]
@@ -635,8 +644,8 @@ class QueryResult(object):
         return block
 
     def get_aggregate(self, id):
-        for agg in self.aggregates:
-            if id == agg["id"]:
+        for agg_id, agg in zip(self.aggregate_ids, self.aggregates):
+            if id == agg_id:
                 return agg["value"]
         return None
 
