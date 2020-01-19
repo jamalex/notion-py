@@ -80,10 +80,9 @@ class BaseHTMLRenderer(BaseRenderer):
 		"""
 		Gets the previous sibling element in the rendered HTML tree
 		"""
-		current_parent = self._render_stack[-1]
-		if not current_parent.children:
-			return None #No children
-		return current_parent.children[-1]
+		if not self._render_stack or not self._render_stack[-1].children:
+			return None #Nothing on stack or no children, so no previous sibling
+		return self._render_stack[-1].children[-1]
 
 	def render_block(self, block):
 		assert isinstance(block, Block)
@@ -100,7 +99,11 @@ class BaseHTMLRenderer(BaseRenderer):
 			return [selfEl]
 
 		#If children, render them inside of us or inside a container
-		selfIsContainerEl = 'data_is_container' in selfEl
+		#NOTE: If you don't use selfEl.attribute, it doesn't work due to not fully
+		#implementing the dict syntax on selfEl... :/
+		selfIsContainerEl = 'data-is-container' in selfEl.attributes
+		if selfIsContainerEl:
+			del selfEl['data-is-container']
 		containerEl = selfEl if selfIsContainerEl else div(_class='children-list')
 		retList = [selfEl]
 		if not selfIsContainerEl:
@@ -120,10 +123,10 @@ class BaseHTMLRenderer(BaseRenderer):
 		return hr()
 
 	def render_column_list(self, block):
-		return div(style='display: flex;', _class='column-list', data_is_container='true')
+		return div(style='display: flex;', _class='column-list', data_is_container=True)
 
 	def render_column(self, block):
-		return div(_class='column', data_is_container='true')
+		return div(_class='column', data_is_container=True)
 
 	def render_to_do(self, block):
 		id = f'chk_{block.id}'
