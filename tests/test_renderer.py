@@ -75,6 +75,21 @@ def test_BulletedListBlock():
 	#assert
 	assert output == '<h1>Test Page</h1><div class="children-list"><ul><li>:3</li><li>:F</li><li>&gt;:D</li></ul></div>'
 
+def test_BulletedListBlockNested():
+	'''it renders BulletedListBlocks'''
+	#arrange
+	block = MockPageBlock({ 'title': 'Test Page' }, [
+				MockBulletedListBlock({ 'title': 'owo' }, [
+					MockBulletedListBlock({ 'title': 'OwO' })
+				])
+			])
+
+	#act
+	output = BaseHTMLRenderer(block).render(pretty=False)
+
+	#assert
+	assert output == '<h1>Test Page</h1><div class="children-list"><ul><li>owo</li><ul><li>OwO</li></ul></ul></div>'
+
 def test_NumberedListBlock():
 	'''it renders NumberedListBlocks'''
 	#arrange
