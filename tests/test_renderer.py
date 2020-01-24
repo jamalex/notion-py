@@ -1,24 +1,53 @@
 '''
 Tests for notion-py renderer
 '''
-import pytest
+import uuid
 from functools import partial
+import pytest
 from notion.renderer import BaseHTMLRenderer
 from notion.block import TextBlock, BulletedListBlock, PageBlock, NumberedListBlock, \
 							ImageBlock, ColumnBlock, ColumnListBlock
-from unittest.mock import Mock
+from unittest.mock import Mock, PropertyMock
+
+def MockSpace(pages=[]):
+	#TODO: Doesn't operate at all like *Block types...
+	spaceMock = Mock()
+	spaceMock.pages = pages
+	spaceMock.id = uuid.uuid4()
+	for page in pages:
+		type(page).parent = PropertyMock(return_value = spaceMock)
+	return spaceMock
+testSpace = MockSpace()
 
 def BlockMock(blockType, inputDict, children=[]):
-	mock = Mock(spec=blockType)
-	mock._type = blockType._type
-	mock.__dict__.update(inputDict)
-	mock.children = children
-	return mock
+	global testSpace
+
+	blockMock = Mock(spec=blockType)
+	blockMock._type = blockType._type
+	blockMock.__dict__.update(inputDict)
+	blockMock.id = uuid.uuid4()
+	blockMock.get = Mock(return_value={})
+	blockMock.children = children
+	if issubclass(blockType, PageBlock):
+		#PageBlocks always need a parent, might be overwritten later
+		type(blockMock).parent = PropertyMock(return_value = testSpace)
+		blockMock.get = Mock(return_value={
+			'parent_id': testSpace.id
+		})
+
+	#Setup children references if passed
+	for child in children:
+		#Can't set a mock on a property of a mock in a circular relationship
+		#or it messes up so use PropertyMock
+		type(child).parent = PropertyMock(return_value = blockMock)
+		child.get = Mock(return_value = {
+			'parent_id': blockMock.id
+		})
+	return blockMock
 
 for blockCls in [TextBlock, BulletedListBlock, PageBlock, NumberedListBlock, \
 					ImageBlock, ColumnBlock, ColumnListBlock]:
 	globals()["Mock" + blockCls.__name__] = partial(BlockMock, blockCls)
-
 
 def test_TextBlock():
 	'''it renders a TextBlock'''

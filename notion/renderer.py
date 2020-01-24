@@ -1,16 +1,48 @@
 import mistletoe
 from mistletoe import block_token
-from mistletoe.html_renderer import HTMLRenderer
+from mistletoe.html_renderer import HTMLRenderer as MistletoeHTMLRenderer
 import requests
 import dominate
-import threading
 from dominate.tags import *
 from dominate.util import raw
+from more_itertools import flatten
 
 from .block import *
+from .collection import CollectionRowBlock
 
+#This is the minimal css stylesheet to apply to get
+#decent lookint output, it won't make it look exactly like Notion.so
+#but will have the same basic structure
+HTMLRendererStyles = """
+<style>
+html, body {
+	padding: 20px;
+	margin: 20px auto;
+	width: 900px;
+	font-size: 16px;
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, "Apple Color Emoji", Arial, sans-serif, "Segoe UI Emoji", "Segoe UI Symbol";
+}
+.children-list {
+	margin-left: cRems(20px);
+}
+.column-list {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+.callout {
+	display: flex;
+}
+.callout > .icon {
+	flex: 0 1 40px;
+}
+.callout > .text {
+	flex: 1 1 auto;
+}
+</style>
+"""
 
-class MistletoeHTMLRendererSpanTokens(HTMLRenderer):
+class MistletoeHTMLRendererSpanTokens(MistletoeHTMLRenderer):
     """
     Renders Markdown to HTML without any MD block tokens (like blockquote or code)
     except for the paragraph block token, because you need at least one
@@ -50,6 +82,10 @@ def renderMD(mdStr):
 	#https://github.com/miyuchina/mistletoe/blob/master/mistletoe/block_token.py#L138-L152
 	return raw(mistletoe.markdown(mdStr, MistletoeHTMLRendererSpanTokens)[:-1])
 
+def handles_children_rendering(func):
+	setattr(func, 'handles_children_rendering', True)
+	return func
+
 class BaseHTMLRenderer(BaseRenderer):
 	"""
 	BaseRenderer for HTML output, uses [Dominate](https://github.com/Knio/dominate)
@@ -59,9 +95,20 @@ class BaseHTMLRenderer(BaseRenderer):
 	a given tag, it will be used as the parent container for all rendered children
 	"""
 
-	def __init__(self, start_block):
-		self._render_stack = []
+	def __init__(self, start_block, follow_links=False, follow_pages=True,
+		follow_table_pages=True, with_styles=False):
+		"""
+		start_block The root block to render from
+		follow_links Whether to follow "Links to pages"
+		"""
+		self.exclude_ids = [] #TODO: Add option for this
 		self.start_block = start_block
+		self.follow_links = follow_links
+		self.follow_pages = follow_pages
+		self.follow_table_pages = follow_table_pages
+		self.with_styles = with_styles
+
+		self._render_stack = []
 
 	def render(self, **kwargs):
 		"""
@@ -74,17 +121,30 @@ class BaseHTMLRenderer(BaseRenderer):
 		`xhtml` - Whether or not to use XHTML instead of HTML (<br /> instead of <br>)
 		"""
 		els = self.render_block(self.start_block)
-		return "".join(el.render(**kwargs) for el in els)
+		return (HTMLRendererStyles if self.with_styles else "") + \
+			"".join(el.render(**kwargs) for el in els)
+
+	def get_parent_el(self):
+		"""
+		Gets the current parent off the render stack
+		"""
+		if not self._render_stack:
+			return None
+		return self._render_stack[-1]
 
 	def get_previous_sibling_el(self):
 		"""
 		Gets the previous sibling element in the rendered HTML tree
 		"""
-		if not self._render_stack or not self._render_stack[-1].children:
-			return None #Nothing on stack or no children, so no previous sibling
-		return self._render_stack[-1].children[-1]
+		parentEl = self.get_parent_el()
+		if not parentEl or not parentEl.children:
+			return None #No parent or no siblings
+		return parentEl.children[-1]
 
 	def render_block(self, block):
+		if block.id in self.exclude_ids:
+			return [] #don't render this block
+
 		assert isinstance(block, Block)
 		type_renderer = getattr(self, "render_" + block._type, None)
 		if not callable(type_renderer):
@@ -92,137 +152,164 @@ class BaseHTMLRenderer(BaseRenderer):
 				type_renderer = self.render_default
 			else:
 				raise Exception("No handler for block type '{}'.".format(block._type))
-		#Render ourselves to a Dominate HTML element
-		selfEl = type_renderer(block)
-		if not block.children:
-			#No children, return early
-			return [selfEl]
+		class_function = getattr(self.__class__, type_renderer.__name__)
 
-		#If children, render them inside of us or inside a container
-		#NOTE: If you don't use selfEl.attribute, it doesn't work due to not fully
-		#implementing the dict syntax on selfEl... :/
-		selfIsContainerEl = 'data-is-container' in selfEl.attributes
-		if selfIsContainerEl:
-			del selfEl['data-is-container']
-		containerEl = selfEl if selfIsContainerEl else div(_class='children-list')
-		retList = [selfEl]
-		if not selfIsContainerEl:
-			retList.append(containerEl)
+		#Render ourselves to a Dominate HTML element
+		els = type_renderer(block) #Returns a list of elements
+
+		# If the function handled the children (using the flag on the function) then
+		# don't render them out using the default append method
+		return els if hasattr(class_function, 'handles_children_rendering') else \
+			els + self.render_block_children_into(block)
+
+	def render_block_children_into(self, block, containerEl=None):
+		if not block.children:
+			return []
+		if containerEl is None:
+			containerEl = div(_class='children-list')
 		self._render_stack.append(containerEl)
-		for child in block.children:
-			for childEl in self.render_block(child):
-				if childEl: #Might return None if pass or if no extra element to add
-					containerEl.add(childEl)
+		for block in block.children:
+			els = self.render_block(block)
+			containerEl.add(els)
 		self._render_stack.pop()
-		return retList
+		return [containerEl]
+
+	# == Conversions for rendering notion-py block types to elemenets ==
+	# Each function should return a list containing dominate tags
+	# Marking a function with handles_children_rendering means it handles rendering
+	# it's own `.children` and doesn't need to perform the default rendering
 
 	def render_default(self, block):
-		return p(renderMD(block.title))
+		return [p(renderMD(block.title))]
 
 	def render_divider(self, block):
-		return hr()
+		return [hr()]
 
+	@handles_children_rendering
 	def render_column_list(self, block):
-		return div(style='display: flex;', _class='column-list', data_is_container=True)
+		return self.render_block_children_into(block, div(style='display: flex;', _class='column-list'))
 
+	@handles_children_rendering
 	def render_column(self, block):
-		return div(_class='column', data_is_container=True)
+		return self.render_block_children_into(block, div(_class='column'))
 
 	def render_to_do(self, block):
 		id = f'chk_{block.id}'
-		return input(label(_for=id), type='checkbox', id=id, checked=block.checked, title=block.title)
+		return [input( \
+				label(_for=id), \
+			type='checkbox', id=id, checked=block.checked, title=block.title)]
 
 	def render_code(self, block):
 		#TODO: Do we want this to support Markdown? I think there's a notion-py
 		#change that might affect this... (the unstyled-title or whatever)
-		return pre(code(block.title))
+		return [pre(code(block.title))]
 
 	def render_factory(self, block):
-		pass
+		return []
 
 	def render_header(self, block):
-		return h2(renderMD(block.title))
+		return [h2(renderMD(block.title))]
 
 	def render_sub_header(self, block):
-		return h3(renderMD(block.title))
+		return [h3(renderMD(block.title))]
 
 	def render_sub_sub_header(self, block):
-		return h4(renderMD(block.title))
+		return [h4(renderMD(block.title))]
 
+	@handles_children_rendering
 	def render_page(self, block):
-		return h1(renderMD(block.title))
+		if block.parent.id != block.get()['parent_id']:
+			#A link is a PageBlock where the parent id doesn't equal the _actual_ parent id
+			#of the block
+			pageEl = h1(renderMD(block.title)) #TODO: Make this an <a> too?
+			if not self.follow_links:
+				return [pageEl] #Don't render children
+		else: #A normal PageBlock
+			pageEl = h1(renderMD(block.title))
+			if not self.follow_pages and self._render_stack:
+				return [pageEl]
 
+		#If no early out, render the children with the pageEl
+		return [pageEl] + self.render_block_children_into(block)
+
+	@handles_children_rendering
 	def render_bulleted_list(self, block):
 		previousSibling = self.get_previous_sibling_el()
 		previousSiblingIsUl = previousSibling and isinstance(previousSibling, ul)
-		#Open a new ul if the last child was not a ul
-		with previousSibling if previousSiblingIsUl else ul() as ret:
-			li(renderMD(block.title))
-		return None if previousSiblingIsUl else ret
+		containerEl = previousSibling if previousSiblingIsUl else ul() #Make a new ul if there's no previous ul
 
+		blockEl = li(renderMD(block.title))
+		containerEl.add(blockEl) #Render out ourself into the stack
+		self.render_block_children_into(block, containerEl)
+		return [] if containerEl.parent else [containerEl] #Only return if it's not in the rendered output yet
+
+	@handles_children_rendering
 	def render_numbered_list(self, block):
 		previousSibling = self.get_previous_sibling_el()
 		previousSiblingIsOl = previousSibling and isinstance(previousSibling, ol)
-		#Open a new ul if the last child was not a ol
-		with previousSibling if previousSiblingIsOl else ol() as ret:
-			li(renderMD(block.title))
-		return None if previousSiblingIsOl else ret
+		containerEl = previousSibling if previousSiblingIsOl else ol() #Make a new ol if there's no previous ol
+
+		blockEl = li(renderMD(block.title))
+		containerEl.add(blockEl) #Render out ourself into the stack
+		self.render_block_children_into(block, containerEl)
+		return [] if containerEl.parent else [containerEl] #Only return if it's not in the rendered output yet
 
 	def render_toggle(self, block):
-		return details(summary(renderMD(block.title)))
+		return [details(summary(renderMD(block.title)))]
 
 	def render_quote(self, block):
-		return blockquote(renderMD(block.title))
+		return [blockquote(renderMD(block.title))]
 
 	render_text = render_default
 
 	def render_equation(self, block):
-		return p(img(src=f'https://chart.googleapis.com/chart?cht=tx&chl={block.latex}'))
+		return [p(img(src=f'https://chart.googleapis.com/chart?cht=tx&chl={block.latex}'))]
 
 	def render_embed(self, block):
-		return iframe(src=block.display_source or block.source, frameborder=0,
+		return [iframe(src=block.display_source or block.source, frameborder=0,
 			sandbox='allow-scripts allow-popups allow-forms allow-same-origin',
-			allowfullscreen='')
+			allowfullscreen='')]
 
 	def render_video(self, block):
 		#TODO, this won't work if there's no file extension, we might have
 		#to query and get the MIME type...
 		src = block.display_source or block.source
 		srcType = src.split('.')[-1]
-		return video(source(src=src, type=f"video/{srcType}"), controls=True)
+		return [video(source(src=src, type=f"video/{srcType}"), controls=True)]
 
 	render_file = render_embed
 	render_pdf = render_embed
 
 	def render_audio(self, block):
-		return audio(src=block.display_source or block.source, controls=True)
+		return [audio(src=block.display_source or block.source, controls=True)]
 
 	def render_image(self, block):
 		attrs = {}
 		if block.caption: # Add the alt attribute if there's a caption
 			attrs['alt'] = block.caption
-		return img(src=block.display_source or block.source, **attrs)
+		return [img(src=block.display_source or block.source, **attrs)]
 
 	def render_bookmark(self, block):
 		#return bookmark_template.format(link=, title=block.title, description=block.description, icon=block.bookmark_icon, cover=block.bookmark_cover)
-		#It's just a social share card for the website we're bookmarking
-		return a(href="block.link")
+		#TODO: It's just a social share card for the website we're bookmarking
+		return [a(href="block.link")]
 
 	def render_link_to_collection(self, block):
-		return a(href=f'https://www.notion.so/{block.id.replace("-", "")}')
+		return [a(href=f'https://www.notion.so/{block.id.replace("-", "")}')]
 
 	def render_breadcrumb(self, block):
-		return p(renderMD(block.title))
+		return [p(renderMD(block.title))]
 
 	def render_collection_view(self, block):
-		return a(href=f'https://www.notion.so/{block.id.replace("-", "")}')
+		return [a(href=f'https://www.notion.so/{block.id.replace("-", "")}')]
 
 	def render_collection_view_page(self, block):
-		return a(href=f'https://www.notion.so/{block.id.replace("-", "")}')
+		return [a(href=f'https://www.notion.so/{block.id.replace("-", "")}')]
 
 	render_framer = render_embed
 
 	def render_tweet(self, block):
+		#TODO: Convert to a list or something
 		return requests.get("https://publish.twitter.com/oembed?url=" + block.source).json()["html"]
 
 	render_gist = render_embed
@@ -235,29 +322,16 @@ class BaseHTMLRenderer(BaseRenderer):
 	render_invision = render_embed
 
 	def render_callout(self, block):
-		return div( \
+		return [div( \
 			div(block.icon, _class="icon") + div(renderMD(block.title), _class="text"), \
-		_class="callout")
+		_class="callout")]
 
-#This is the minimal css stylesheet to apply to get
-#decent lookint output, it won't make it look exactly like Notion.so
-#but will have the same basic structure
-"""
-.children-list {
-	margin-left: cRems(20px);
-}
-.column-list {
-	display: flex;
-	align-items: center;
-	justify-content: center;
-}
-.callout {
-	display: flex;
-}
-.callout > .icon {
-	flex: 0 1 40px;
-}
-.callout > .text {
-	flex: 1 1 auto;
-}
-"""
+	def render_collection_view(self, block):
+		#Render out the table itself
+		#TODO
+
+		#Render out all the embedded PageBlocks
+		if not self.follow_table_pages:
+			return [] #Don't render out any of the internal pages
+
+		return [h2(block.title)] + list(flatten(self.render_block(block) for block in block.collection.get_rows()))
