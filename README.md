@@ -197,7 +197,7 @@ Note: You can combine `filter`, `aggregate`, and `sort`. See more examples of qu
 You can also see [more examples in action in the smoke test runner](https://github.com/jamalex/notion-py/blob/master/notion/smoke_test.py). Run it using:
 
 ```sh
-python run_smoke_test.py
+python run_smoke_test.py --page [YOUR_NOTION_PAGE_URL] --token [YOUR_NOTION_TOKEN_V2]
 ```
 
 # _Quick plug: Learning Equality is hiring!_
