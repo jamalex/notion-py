@@ -1,5 +1,5 @@
 import mistletoe
-from mistletoe import block_token
+from mistletoe import block_token, span_token
 from mistletoe.html_renderer import HTMLRenderer as MistletoeHTMLRenderer
 import requests
 import dominate
@@ -8,7 +8,7 @@ from dominate.util import raw
 from more_itertools import flatten
 
 from .block import *
-from .collection import CollectionRowBlock
+from .collection import Collection
 
 #This is the minimal css stylesheet to apply to get
 #decent lookint output, it won't make it look exactly like Notion.so
@@ -52,6 +52,7 @@ class MistletoeHTMLRendererSpanTokens(MistletoeHTMLRenderer):
         ret = super().__enter__()
         for tokenClsName in block_token.__all__[:-1]: #All but Paragraph token
             block_token.remove_token(getattr(block_token, tokenClsName))
+        span_token.remove_token(span_token.AutoLink) #don't autolink urls in markdown
         return ret
     # Auto resets tokens in __exit__, so no need to readd the tokens anywhere
 
@@ -82,6 +83,12 @@ def renderMD(mdStr):
 	#https://github.com/miyuchina/mistletoe/blob/master/mistletoe/block_token.py#L138-L152
 	return raw(mistletoe.markdown(mdStr, MistletoeHTMLRendererSpanTokens)[:-1])
 
+def href_for_block(block):
+	"""
+	Gets the href for a given block
+	"""
+	return f'https://www.notion.so/{block.id.replace("-", "")}'
+
 def handles_children_rendering(func):
 	setattr(func, 'handles_children_rendering', True)
 	return func
@@ -95,17 +102,17 @@ class BaseHTMLRenderer(BaseRenderer):
 	a given tag, it will be used as the parent container for all rendered children
 	"""
 
-	def __init__(self, start_block, follow_links=False, follow_pages=True,
-		follow_table_pages=True, with_styles=False):
+	def __init__(self, start_block, render_linked_pages=False, render_sub_pages=True,
+		render_table_pages_after_table=False, with_styles=False):
 		"""
 		start_block The root block to render from
 		follow_links Whether to follow "Links to pages"
 		"""
 		self.exclude_ids = [] #TODO: Add option for this
 		self.start_block = start_block
-		self.follow_links = follow_links
-		self.follow_pages = follow_pages
-		self.follow_table_pages = follow_table_pages
+		self.render_linked_pages = render_linked_pages
+		self.render_sub_pages = render_sub_pages
+		self.render_table_pages_after_table = render_table_pages_after_table
 		self.with_styles = with_styles
 
 		self._render_stack = []
@@ -157,18 +164,19 @@ class BaseHTMLRenderer(BaseRenderer):
 		#Render ourselves to a Dominate HTML element
 		els = type_renderer(block) #Returns a list of elements
 
-		# If the function handled the children (using the flag on the function) then
-		# don't render them out using the default append method
-		return els if hasattr(class_function, 'handles_children_rendering') else \
-			els + self.render_block_children_into(block)
+		#If the block has no children, or the called function handles the child
+		#rendering itself, don't render the children
+		if not block.children or hasattr(class_function, 'handles_children_rendering'):
+			return els
 
-	def render_block_children_into(self, block, containerEl=None):
-		if not block.children:
-			return []
-		if containerEl is None:
+		#Otherwise, render and use the default append as a children-list
+		return els + self.render_blocks_into(block.children, None)
+
+	def render_blocks_into(self, blocks, containerEl=None):
+		if containerEl is None: #Default behavior is to add a container for the children
 			containerEl = div(_class='children-list')
 		self._render_stack.append(containerEl)
-		for block in block.children:
+		for block in blocks:
 			els = self.render_block(block)
 			containerEl.add(els)
 		self._render_stack.pop()
@@ -187,11 +195,11 @@ class BaseHTMLRenderer(BaseRenderer):
 
 	@handles_children_rendering
 	def render_column_list(self, block):
-		return self.render_block_children_into(block, div(style='display: flex;', _class='column-list'))
+		return self.render_blocks_into(block.children, div(style='display: flex;', _class='column-list'))
 
 	@handles_children_rendering
 	def render_column(self, block):
-		return self.render_block_children_into(block, div(_class='column'))
+		return self.render_blocks_into(block.children, div(_class='column'))
 
 	def render_to_do(self, block):
 		id = f'chk_{block.id}'
@@ -218,19 +226,26 @@ class BaseHTMLRenderer(BaseRenderer):
 
 	@handles_children_rendering
 	def render_page(self, block):
-		if block.parent.id != block.get()['parent_id']:
+		#TODO: I would use isinstance(xxx, CollectionRowBlock) here but it's buggy
+		#https://github.com/jamalex/notion-py/issues/103
+		if isinstance(block.parent, Collection): #If it's a child of a collection (CollectionRowBlock)
+			if not self.render_table_pages_after_table:
+				return []
+			return [h3(renderMD(block.title))] + self.render_blocks_into(block.children)
+		elif block.parent.id != block.get()['parent_id']:
 			#A link is a PageBlock where the parent id doesn't equal the _actual_ parent id
 			#of the block
-			pageEl = h1(renderMD(block.title)) #TODO: Make this an <a> too?
-			if not self.follow_links:
-				return [pageEl] #Don't render children
+			if not self.render_linked_pages:
+				#Render only the link, none of the content in the link
+				return [a(h4(renderMD(block.title)), href=href_for_block(block))]
 		else: #A normal PageBlock
-			pageEl = h1(renderMD(block.title))
-			if not self.follow_pages and self._render_stack:
-				return [pageEl]
+			if not self.render_sub_pages and self._render_stack:
+				return [h4(renderMD(block.title))] #Subpages when not rendering them render like in Notion, as a simple heading
 
-		#If no early out, render the children with the pageEl
-		return [pageEl] + self.render_block_children_into(block)
+		#Otherwise, render a page normally in it's entirety
+		#TODO: This should probably not use a "children-list" but we need to refactor
+		#the _render_stack to make that work...
+		return [h1(renderMD(block.title))] + self.render_blocks_into(block.children)
 
 	@handles_children_rendering
 	def render_bulleted_list(self, block):
@@ -240,7 +255,7 @@ class BaseHTMLRenderer(BaseRenderer):
 
 		blockEl = li(renderMD(block.title))
 		containerEl.add(blockEl) #Render out ourself into the stack
-		self.render_block_children_into(block, containerEl)
+		self.render_blocks_into(block.children, containerEl)
 		return [] if containerEl.parent else [containerEl] #Only return if it's not in the rendered output yet
 
 	@handles_children_rendering
@@ -251,7 +266,7 @@ class BaseHTMLRenderer(BaseRenderer):
 
 		blockEl = li(renderMD(block.title))
 		containerEl.add(blockEl) #Render out ourself into the stack
-		self.render_block_children_into(block, containerEl)
+		self.render_blocks_into(block.children, containerEl)
 		return [] if containerEl.parent else [containerEl] #Only return if it's not in the rendered output yet
 
 	def render_toggle(self, block):
@@ -295,16 +310,14 @@ class BaseHTMLRenderer(BaseRenderer):
 		return [a(href="block.link")]
 
 	def render_link_to_collection(self, block):
-		return [a(href=f'https://www.notion.so/{block.id.replace("-", "")}')]
+		return [a(renderMD(block.title), href=href_for_block(block))]
 
 	def render_breadcrumb(self, block):
 		return [p(renderMD(block.title))]
 
-	def render_collection_view(self, block):
-		return [a(href=f'https://www.notion.so/{block.id.replace("-", "")}')]
-
 	def render_collection_view_page(self, block):
-		return [a(href=f'https://www.notion.so/{block.id.replace("-", "")}')]
+		print("TEST")
+		return [a(renderMD(block.title), href=href_for_block(block))]
 
 	render_framer = render_embed
 
@@ -331,7 +344,7 @@ class BaseHTMLRenderer(BaseRenderer):
 		#TODO
 
 		#Render out all the embedded PageBlocks
-		if not self.follow_table_pages:
+		if not self.render_table_pages_after_table:
 			return [] #Don't render out any of the internal pages
 
-		return [h2(block.title)] + list(flatten(self.render_block(block) for block in block.collection.get_rows()))
+		return [h2(block.title)] + self.render_blocks_into(block.collection.get_rows())
