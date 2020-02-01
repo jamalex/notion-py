@@ -9,7 +9,7 @@ from .maps import property_map, field_map
 from .markdown import markdown_to_notion, notion_to_markdown
 from .operations import build_operation
 from .records import Record
-from .utils import add_signed_prefix_as_needed, remove_signed_prefix_as_needed, slugify
+from .utils import add_signed_prefix_as_needed, extract_id, remove_signed_prefix_as_needed, slugify
 
 
 class NotionDate(object):
