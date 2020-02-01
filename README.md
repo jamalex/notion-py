@@ -142,6 +142,8 @@ Here's how things fit together:
 
 Note: For convenience, we automatically map the database "columns" (aka properties), based on the schema defined in the `Collection`, into getter/setter attributes on the `CollectionRowBlock` instances. The attribute name is a "slugified" version of the name of the column. So if you have a column named "Estimated value", you can read and write it via `myrowblock.estimated_value`. Some basic validation may be conducted, and it will be converted into the appropriate internal format. For columns of type "Person", we expect a `User` instance, or a list of them, and for a "Relation" we expect a singular/list of instances of a subclass of `Block`.
 
+**Note**: all `search` and `query` functionality in the following is currently inactive, pending https://github.com/jamalex/notion-py/pull/95. 
+
 ```Python
 # Access a database using the URL of the database page or the inline block
 cv = client.get_collection_view("https://www.notion.so/myorg/8511b9fc522249f79b90768b832599cc?v=8dee2a54f6b64cb296c83328adba78e1")
