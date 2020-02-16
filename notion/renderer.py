@@ -5,6 +5,7 @@ import requests
 import dominate
 from dominate.tags import *
 from dominate.util import raw
+from dominate.dom_tag import dom_tag
 from more_itertools import flatten
 
 from .block import *
@@ -128,8 +129,9 @@ class BaseHTMLRenderer(BaseRenderer):
 		`xhtml` - Whether or not to use XHTML instead of HTML (<br /> instead of <br>)
 		"""
 		els = self.render_block(self.start_block)
+		#Strings render as themselves, DOMinate tags user the passed kwargs
 		return (HTMLRendererStyles if self.with_styles else "") + \
-			"".join(el.render(**kwargs) for el in els)
+			"".join(el.render(**kwargs) if isinstance(el, dom_tag) else el for el in els)
 
 	def get_parent_el(self):
 		"""
@@ -183,7 +185,7 @@ class BaseHTMLRenderer(BaseRenderer):
 		return [containerEl]
 
 	# == Conversions for rendering notion-py block types to elemenets ==
-	# Each function should return a list containing dominate tags
+	# Each function should return a list containing dominate tags or a string of HTML
 	# Marking a function with handles_children_rendering means it handles rendering
 	# it's own `.children` and doesn't need to perform the default rendering
 
