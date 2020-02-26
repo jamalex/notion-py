@@ -138,7 +138,7 @@ class Collection(Record):
                 return prop
         return None
 
-    def add_row(self, **kwargs):
+    def add_row(self, update_views=True, **kwargs):
         """
         Create a new empty CollectionRowBlock under this collection, and return the instance.
         """
@@ -149,11 +149,12 @@ class Collection(Record):
         with self._client.as_atomic_transaction():
             for key, val in kwargs.items():
                 setattr(row, key, val)
-            # make sure the new record is inserted at the end of each view
-            for view in self.parent.views:
-                if isinstance(view, CalendarView):
-                    continue
-                view.set("page_sort", view.get("page_sort", []) + [row_id])
+            if update_views:
+                # make sure the new record is inserted at the end of each view
+                for view in self.parent.views:
+                    if isinstance(view, CalendarView):
+                        continue
+                    view.set("page_sort", view.get("page_sort", []) + [row_id])
 
         return row
 
