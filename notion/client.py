@@ -33,7 +33,7 @@ def create_session():
     """
     session = Session()
     retry = Retry(
-        status=5,
+        5,
         backoff_factor=0.3,
         status_forcelist=(502,),
         # CAUTION: adding 'POST' to this list which is not technically idempotent
