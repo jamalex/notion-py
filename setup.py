@@ -13,7 +13,7 @@ install_requires = [str(ir.req) for ir in reqs]
 
 setuptools.setup(
     name="notion",
-    version="0.0.25",
+    version="0.0.26",
     author="Viran Ribic",
     author_email="viran.ribic@gmail.com",
     description="Unofficial Python API client for Notion.so",
