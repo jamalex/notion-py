@@ -7,6 +7,7 @@ class User(Record):
 
     _table = "notion_user"
 
+    user_id = field_map("user_id")
     given_name = field_map("given_name")
     family_name = field_map("family_name")
     email = field_map("email")
