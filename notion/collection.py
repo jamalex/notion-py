@@ -279,11 +279,11 @@ def _normalize_query_data(data, collection, recursing=False):
         if "value" in data:
             if hasattr(data["value"], "id"):
                 data["value"] = data["value"].id
-    if "value" in data:
-        if hasattr(data["value"], "id"):
-            data["value"] = data["value"].id
-    for key in data:
-        data[key] = _normalize_query_data(data[key], collection, recursing=True)
+        if "value" in data:
+            if hasattr(data["value"], "id"):
+                data["value"] = data["value"].id
+        for key in data:
+            data[key] = _normalize_query_data(data[key], collection, recursing=True)
     return data
 
 
