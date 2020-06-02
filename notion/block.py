@@ -778,7 +778,7 @@ class CollectionViewPageBlock(CollectionViewBlock):
         python_to_api=remove_signed_prefix_as_needed,
     )
     
-     cover = field_map(
+    cover = field_map(
         "format.page_cover",
         api_to_python=add_signed_prefix_as_needed,
         python_to_api=remove_signed_prefix_as_needed,
