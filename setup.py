@@ -1,19 +1,25 @@
 import setuptools
 
-try:  # for pip >= 10
-    from pip._internal.req import parse_requirements
-except ImportError:  # for pip <= 9.0.3
-    from pip.req import parse_requirements
-
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
-reqs = parse_requirements("requirements.txt", session=False)
-install_requires = [str(ir.req) for ir in reqs]
+
+def get_requirements(fname):
+    "Takes requirements from requirements.txt and returns a list."
+    with open(fname) as fp:
+        reqs = list()
+        for lib in fp.read().split("\n"):
+            # Ignore pypi flags and comments
+            if not lib.startswith("-") or lib.startswith("#"):
+                reqs.append(lib.strip())
+        return reqs
+
+
+install_requires = get_requirements("requirements.txt")
 
 setuptools.setup(
     name="notion",
-    version="0.0.25",
+    version="0.0.26",
     author="Jamie Alexandre",
     author_email="jamalex+python@gmail.com",
     description="Unofficial Python API client for Notion.so",
