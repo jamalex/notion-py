@@ -9,6 +9,7 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 
 reqs = parse_requirements("requirements.txt", session=False)
+print(reqs)
 install_requires = [str(ir.req) for ir in reqs]
 
 setuptools.setup(
