@@ -322,7 +322,7 @@ class RecordStore(object):
             "loader": {
                 "limit": 10000,
                 "loadContentCover": True,
-                "query": search,
+                "searchQuery": search,
                 "userLocale": "en",
                 "userTimeZone": str(get_localzone()),
                 "type": type,
