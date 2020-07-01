@@ -388,6 +388,13 @@ class CollectionRowBlock(PageBlock):
 
         return self._convert_notion_to_python(val, prop)
 
+    def get_mentioned_pages_on_property(self, identifier):
+        prop = self.collection.get_schema_property(identifier)
+        if prop is None:
+            raise AttributeError("Object does not have property '{}'".format(identifier))
+        val = self.get(["properties", prop["id"]])
+        return self._convert_mentioned_pages_to_python(val, prop)
+
     def _convert_diff_to_changelist(self, difference, old_val, new_val):
 
         changed_props = set()
@@ -420,9 +427,29 @@ class CollectionRowBlock(PageBlock):
             remaining, old_val, new_val
         )
 
+    def _convert_mentioned_pages_to_python(self, val, prop):
+        if not prop["type"] in ["title", "text"]:
+            raise TypeError("The property must be an title or text to convert mentioned pages to Python.")
+
+        pages = []
+        for i, part in enumerate(val):
+            if len(part) == 2:
+                for format in part[1]:
+                    if "p" in format:
+                        pages.append(self._client.get_block(format[1]))
+
+        return pages
+
     def _convert_notion_to_python(self, val, prop):
 
         if prop["type"] in ["title", "text"]:
+            for i, part in enumerate(val):
+                if len(part) == 2:
+                    for format in part[1]:
+                        if "p" in format:
+                            page = self._client.get_block(format[1])
+                            val[i] = (["[" + page.icon + " " + page.title + "](" + page.get_browseable_url() + ")"])
+
             val = notion_to_markdown(val) if val else ""
         if prop["type"] in ["number"]:
             if val is not None:
