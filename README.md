@@ -194,6 +194,23 @@ print("Sorted results, showing most valuable first:", result)
 
 Note: You can combine `filter`, `aggregate`, and `sort`. See more examples of queries by setting up complex views in Notion, and then inspecting `cv.get("query")`
 
+## Example: Lock/Unlock A Page
+```python
+from notion.client import NotionClient
+
+# Obtain the `token_v2` value by inspecting your browser cookies on a logged-in session on Notion.so
+client = NotionClient(token_v2="<token_v2>")
+
+# Replace this URL with the URL of the page you want to edit
+page = client.get_block("https://www.notion.so/myorg/Test-c0d20a71c0944985ae96e661ccc99821")
+
+# change_lock is a method accessible to every Block/Page in notion.
+# Pass True to lock a page and False to unlock it. 
+page.change_lock(True)
+page.change_lock(False)
+```
+
+
 You can also see [more examples in action in the smoke test runner](https://github.com/jamalex/notion-py/blob/master/notion/smoke_test.py). Run it using:
 
 ```sh

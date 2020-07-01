@@ -425,6 +425,27 @@ class Block(Record):
             ]
         )
 
+    def change_lock(self, locked):
+        command = "update"
+        arguments = dict(block_locked=locked, block_locked_by=self._client.current_user.id)
+
+        with self._client.as_atomic_transaction():
+            self._client.submit_transaction(
+                build_operation(
+                    id=self.id,
+                    path=["format"],
+                    args=arguments,
+                    command=command,
+                )
+            )
+
+        # update the local block cache to reflect the updates
+        self._client.refresh_records(
+            block=[
+                self.id
+            ]
+        )
+
 
 class DividerBlock(Block):
 
