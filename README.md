@@ -92,7 +92,8 @@ collection = client.get_collection(COLLECTION_ID) # get an existing collection
 cvb = page.children.add_new(CollectionViewBlock, collection=collection)
 view = cvb.views.add_new(view_type="table")
 
-# now the filters and format options on the view can bet set as desired.
+# Before the view can be browsed in Notion, 
+# the filters and format options on the view should be set as desired.
 # 
 # for example:
 #   view.set("query", ...)
