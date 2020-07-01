@@ -4,6 +4,7 @@ build/
 dist/
 *.egg-info
 *_testing.py
+.pytest_cache
 
 # pipenv
 .env
