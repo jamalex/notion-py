@@ -155,12 +155,12 @@ class Collection(Record):
         with self._client.as_atomic_transaction():
             for key, val in kwargs.items():
                 setattr(row, key, val)
-            if update_views:
-                # make sure the new record is inserted at the end of each view
-                for view in self.parent.views:
-                    if isinstance(view, CalendarView):
-                        continue
-                    view.set("page_sort", view.get("page_sort", []) + [row_id])
+
+            # make sure the new record is inserted at the end of each view
+            for view in self.parent.views:
+                if view is None or isinstance(view, CalendarView):
+                    continue
+                view.set("page_sort", view.get("page_sort", []) + [row_id])
 
         return row
 
