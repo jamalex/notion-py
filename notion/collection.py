@@ -246,7 +246,7 @@ class CalendarView(CollectionView):
 
     def build_query(self, **kwargs):
         calendar_by = self._client.get_record_data("collection_view", self._id)[
-            "query"
+            "query2"
         ]["calendar_by"]
         return super().build_query(calendar_by=calendar_by, **kwargs)
 
