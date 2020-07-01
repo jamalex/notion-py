@@ -176,12 +176,17 @@ def markdown_to_notion(markdown):
         elif item[0]:
             consolidated.append(item)
 
-    # reinstate the regular dashes
-    for item in consolidated:
-        item[0] = item[0].replace("⸻", "-")
+    return cleanup_dashes(consolidated)
 
-    return consolidated
+def cleanup_dashes(thing):
+    regex_pattern = re.compile('⸻|%E2%B8%BB')
+    if type(thing) is list:
+        for counter, value in enumerate(thing):
+            thing[counter] = cleanup_dashes(value)
+    elif type(thing) is str:
+        return regex_pattern.sub('-', thing)
 
+    return thing
 
 def notion_to_markdown(notion):
 
