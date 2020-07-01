@@ -18,18 +18,18 @@ def get_requirements(fname):
 install_requires = get_requirements("requirements.txt")
 
 setuptools.setup(
-    name="notion",
-    version="0.0.26",
-    author="Jamie Alexandre",
-    author_email="jamalex+python@gmail.com",
-    description="Unofficial Python API client for Notion.so",
+    name="notion-py",
+    version="0.0.1",
+    author="Artur Tamborski",
+    author_email="tamborskiartur@gmail.com",
+    description="(Fork of) Unofficial Python API client for Notion.so",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/jamalex/notion-py",
+    url="https://github.com/arturtamborski/notion-py",
     install_requires=install_requires,
     include_package_data=True,
     packages=setuptools.find_packages(),
-    python_requires=">=3.5",
+    python_requires=">=3.6",
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: MIT License",
