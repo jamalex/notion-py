@@ -90,7 +90,7 @@ def _extract_text_and_format_from_ast(item):
         return item.get("literal", ""), ("c",)
 
     if item["type"] == "link":
-        return item.get("literal", ""), ("a", item["destination"])
+        return item.get("literal", ""), ("a", item.get("destination", "#"))
 
     return item.get("literal", ""), ()
 
