@@ -1,6 +1,26 @@
 # notion-py
 
-Unofficial Python 3 client for Notion.so API v3.
+</br>
+
+---
+
+> **_NOTE:_**  This is a [fork](https://github.com/jamalex/notion-py) of the 
+original repository created by [Jamie Alexandre](https://github.com/jamalex).  
+I've ported and merged all PRs from upstream and I'm on a quest to fix all Issues :)  
+
+You can also try out this package - it's called 
+[notion-py](https://pypi.org/project/notion-py/) on PyPI and you can install 
+it by executing `pip install notion-py`, though the imports are still working as before, as shown below:  
+`from from notion.client import NotionClient`.
+
+The original repository created by Jamie is  still online under the name [notion](https://pypi.org/project/notion/) on PyPI, so please watch out for that confusion. Also, this repository will be generally unstable for a while until I set up some kind of sensible workflow along with smoke tests and runtime checks.
+
+---
+
+</br></br>
+
+
+(Fork of) Unofficial Python 3 client for Notion.so API v3.
 
 - Object-oriented interface (mapping database tables to Python classes/attributes)
 - Automatic conversion between internal Notion formats and appropriate Python objects
@@ -16,9 +36,9 @@ Unofficial Python 3 client for Notion.so API v3.
 
 ## Quickstart
 
-Note: the latest version of **notion-py** requires Python 3.5 or greater.
+Note: the latest version of **notion-py** requires Python 3.6 or greater.
 
-`pip install notion`
+`pip install notion-py`
 
 ```Python
 from notion.client import NotionClient
