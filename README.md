@@ -23,7 +23,7 @@ Note: the latest version of **notion-py** requires Python 3.5 or greater.
 ```Python
 from notion.client import NotionClient
 
-# Obtain the `token_v2` value by inspecting your browser cookies on a logged-in session on Notion.so
+# Obtain the `token_v2` value by inspecting your browser cookies on a logged-in (non-guest) session on Notion.so
 client = NotionClient(token_v2="<token_v2>")
 
 # Replace this URL with the URL of the page you want to edit
