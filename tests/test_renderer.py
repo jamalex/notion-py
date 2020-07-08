@@ -1,9 +1,11 @@
 """
 Tests for notion-py renderer
 """
+
 import uuid
 from functools import partial
-import pytest
+from unittest.mock import Mock, PropertyMock
+
 from notion.renderer import BaseHTMLRenderer
 from notion.block import (
     TextBlock,
@@ -14,7 +16,6 @@ from notion.block import (
     ColumnBlock,
     ColumnListBlock,
 )
-from unittest.mock import Mock, PropertyMock
 
 
 def MockSpace(pages=[]):
