@@ -23,7 +23,10 @@ def run_live_smoke_test(token_v2, parent_page_url_or_id):
     col1kid = col1.children.add_new(
         TextBlock, title="Some formatting: *italic*, **bold**, ***both***!"
     )
-    assert col1kid.title.replace("_", "*") == "Some formatting: *italic*, **bold**, ***both***!"
+    assert (
+        col1kid.title.replace("_", "*")
+        == "Some formatting: *italic*, **bold**, ***both***!"
+    )
     assert col1kid.title_plaintext == "Some formatting: italic, bold, both!"
     col2.children.add_new(TodoBlock, title="I should be unchecked")
     col2.children.add_new(TodoBlock, title="I should be checked", checked=True)
@@ -142,17 +145,19 @@ def run_live_smoke_test(token_v2, parent_page_url_or_id):
 
     # Run a "filtered" query
     filter_params = {
-        "filters": [{
-            "filter": {
-                "value": {
-                    "type": "exact",
-                    "value": {"table": "notion_user", "id": client.current_user.id}
+        "filters": [
+            {
+                "filter": {
+                    "value": {
+                        "type": "exact",
+                        "value": {"table": "notion_user", "id": client.current_user.id},
+                    },
+                    "operator": "person_does_not_contain",
                 },
-                "operator": "person_does_not_contain"
-            },
-            "property": "person"
-        }],
-        "operator": "and"
+                "property": "person",
+            }
+        ],
+        "operator": "and",
     }
     result = view.build_query(filter=filter_params).execute()
     assert row1 in result

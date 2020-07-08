@@ -9,7 +9,12 @@ from .maps import property_map, field_map
 from .markdown import markdown_to_notion, notion_to_markdown
 from .operations import build_operation
 from .records import Record
-from .utils import add_signed_prefix_as_needed, extract_id, remove_signed_prefix_as_needed, slugify
+from .utils import (
+    add_signed_prefix_as_needed,
+    extract_id,
+    remove_signed_prefix_as_needed,
+    slugify,
+)
 
 
 class NotionDate(object):
@@ -277,7 +282,9 @@ def _normalize_query_data(data, collection, recursing=False):
     if not recursing:
         data = deepcopy(data)
     if isinstance(data, list):
-        return [_normalize_query_data(item, collection, recursing=True) for item in data]
+        return [
+            _normalize_query_data(item, collection, recursing=True) for item in data
+        ]
     elif isinstance(data, dict):
         # convert slugs to property ids
         if "property" in data:
@@ -305,7 +312,9 @@ class CollectionQuery(object):
         calendar_by="",
         group_by="",
     ):
-        assert not (aggregate and aggregations), "Use only one of `aggregate` or `aggregations` (old vs new format)"
+        assert not (
+            aggregate and aggregations
+        ), "Use only one of `aggregate` or `aggregations` (old vs new format)"
         self.collection = collection
         self.collection_view = collection_view
         self.search = search
@@ -336,7 +345,7 @@ class CollectionQuery(object):
                 calendar_by=self.calendar_by,
                 group_by=self.group_by,
             ),
-            self
+            self,
         )
 
 
@@ -397,7 +406,9 @@ class CollectionRowBlock(PageBlock):
     def get_mentioned_pages_on_property(self, identifier):
         prop = self.collection.get_schema_property(identifier)
         if prop is None:
-            raise AttributeError("Object does not have property '{}'".format(identifier))
+            raise AttributeError(
+                "Object does not have property '{}'".format(identifier)
+            )
         val = self.get(["properties", prop["id"]])
         return self._convert_mentioned_pages_to_python(val, prop)
 
@@ -435,7 +446,9 @@ class CollectionRowBlock(PageBlock):
 
     def _convert_mentioned_pages_to_python(self, val, prop):
         if not prop["type"] in ["title", "text"]:
-            raise TypeError("The property must be an title or text to convert mentioned pages to Python.")
+            raise TypeError(
+                "The property must be an title or text to convert mentioned pages to Python."
+            )
 
         pages = []
         for i, part in enumerate(val):
@@ -454,7 +467,15 @@ class CollectionRowBlock(PageBlock):
                     for format in part[1]:
                         if "p" in format:
                             page = self._client.get_block(format[1])
-                            val[i] = (["[" + page.icon + " " + page.title + "](" + page.get_browseable_url() + ")"])
+                            val[i] = [
+                                "["
+                                + page.icon
+                                + " "
+                                + page.title
+                                + "]("
+                                + page.get_browseable_url()
+                                + ")"
+                            ]
 
             val = notion_to_markdown(val) if val else ""
         if prop["type"] in ["number"]:
@@ -666,7 +687,9 @@ class QueryResult(object):
         self._client = collection._client
         self._block_ids = self._get_block_ids(result)
         self.aggregates = result.get("aggregationResults", [])
-        self.aggregate_ids = [agg.get("id") for agg in (query.aggregate or query.aggregations)]
+        self.aggregate_ids = [
+            agg.get("id") for agg in (query.aggregate or query.aggregations)
+        ]
         self.query = query
 
     def _get_block_ids(self, result):

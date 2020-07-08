@@ -7,3 +7,4 @@ dictdiffer
 cached-property
 markdown2
 mistletoe
+black

@@ -1,0 +1,13 @@
+name: Check Code Formatting
+
+on: push
+
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v1
+      - name: Run Black
+        uses: lgeiger/black-action@master
+        with:
+          args: --check .

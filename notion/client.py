@@ -54,7 +54,14 @@ class NotionClient(object):
     for internal use -- the main one you'll likely want to use is `get_block`.
     """
 
-    def __init__(self, token_v2=None, monitor=False, start_monitoring=False, enable_caching=False, cache_key=None):
+    def __init__(
+        self,
+        token_v2=None,
+        monitor=False,
+        start_monitoring=False,
+        enable_caching=False,
+        cache_key=None,
+    ):
         self.session = create_session()
         self.session.cookies = cookiejar_from_dict({"token_v2": token_v2})
         if enable_caching:
@@ -178,7 +185,7 @@ class NotionClient(object):
         Then another method looks at the task ID and returns the file when the task finishes.
         So, we need to save the taskId into a variable. This is a helper function to do that.
         """
-        return response.json()['taskId']
+        return response.json()["taskId"]
 
     # Source from https://requests.readthedocs.io/en/master/user/quickstart/#raw-response-content
     def _download_url(self, url, save_path, chunk_size=128):
@@ -189,7 +196,7 @@ class NotionClient(object):
         chunk_size = size of the chunk. This is adjustable. See the documentation for more info.
         """
         r = get(url, stream=True)
-        with open(save_path, 'wb') as fd:
+        with open(save_path, "wb") as fd:
             for chunk in r.iter_content(chunk_size=chunk_size):
                 fd.write(chunk)
 
@@ -204,7 +211,15 @@ class NotionClient(object):
         if delete:
             os.remove(file)
 
-    def download_block(self, block_id, export_type, event_name="exportBlock", recursive=False, time_zone="America/Chicago", locale="en"):
+    def download_block(
+        self,
+        block_id,
+        export_type,
+        event_name="exportBlock",
+        recursive=False,
+        time_zone="America/Chicago",
+        locale="en",
+    ):
         """
         block_id - id of the block. Should be a string.
         export_type - Type of the output file. The options are 'markdown', 'pdf', 'html'
@@ -219,44 +234,42 @@ class NotionClient(object):
         TODO: Review this code. Does it suck? Error handling? This is version 0 of this method and my first open source contribution.
               Give me some criticisms so I can improve as a programmer!
         """
-        tmp_zip = 'tmp.zip'
+        tmp_zip = "tmp.zip"
         data = {
-            "task" : {
-                "eventName" : event_name,
-                "request" : {
-                    "blockId" : block_id,
-                    "recursive" : recursive,
-                    "exportOptions" : {
-                        "exportType" : export_type,
-                        "timeZone" : time_zone,
-                        "locale" : locale
-                    }
-                }
+            "task": {
+                "eventName": event_name,
+                "request": {
+                    "blockId": block_id,
+                    "recursive": recursive,
+                    "exportOptions": {
+                        "exportType": export_type,
+                        "timeZone": time_zone,
+                        "locale": locale,
+                    },
+                },
             }
         }
 
-        task_id = self.post("enqueueTask", data).json()['taskId']
-        response = self.post("getTasks", {"taskIds" : [task_id]})
+        task_id = self.post("enqueueTask", data).json()["taskId"]
+        response = self.post("getTasks", {"taskIds": [task_id]})
 
         task = response.json()
-        
+
         # This is a simple way to ensure that we're getting the data when it's ready.
-        while 'status' not in task['results'][0]:
+        while "status" not in task["results"][0]:
             time.sleep(0.1)
-            response = self.post('getTasks', {'taskIds' : [task_id]})
+            response = self.post("getTasks", {"taskIds": [task_id]})
             task = response.json()
 
-        while 'exportURL' not in task['results'][0]['status']:
+        while "exportURL" not in task["results"][0]["status"]:
             time.sleep(0.1)
-            response = self.post('getTasks', {'taskIds' : [task_id]})
+            response = self.post("getTasks", {"taskIds": [task_id]})
             task = response.json()
 
-        url = task['results'][0]['status']['exportURL']
+        url = task["results"][0]["status"]["exportURL"]
 
         self._download_url(url, tmp_zip)
         self._unzip_file(tmp_zip)
-
-
 
     def post(self, endpoint, data):
         """
