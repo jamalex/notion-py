@@ -1,0 +1,25 @@
+name: Run Smoke Tests
+
+on:
+  push:
+    branches: [master]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v2
+        with:
+          python-version: '3.x'
+      - run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.lock
+
+      - name: Run Smoke Tests
+        env:
+          NOTION_TOKEN_V2: ${{ secrets.NOTION_TOKEN_V2 }}
+          NOTION_PAGE_URL: ${{ secrets.NOTION_PAGE_URL }}
+        run: |
+          pytest smoke_tests/
