@@ -1,7 +1,7 @@
 from datetime import datetime
 
-from .client import *
-from .block import *
+from notion.client import *
+from notion.block import *
 
 
 def run_live_smoke_test(token_v2, parent_page_url_or_id):
