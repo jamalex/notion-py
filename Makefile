@@ -13,9 +13,7 @@ release: build  ## upload wheel to PyPI
 
 clean:  ## clean all build files
 	find . -name "*.pyc" -print0 | xargs -0 rm -rf
-	rm -rf build
-	rm -rf dist
-	rm -rf notion.egg-info
+	rm -rf build dist notion.egg-info
 
 
 install:  ## install package locally
@@ -27,7 +25,11 @@ format:  ## reformat code with black
 
 
 test:  ## run unit tests
-	pytest
+	pytest tests/
+
+
+smoke-test:  ## run smoke tests
+	pytest smoke_tests/
 
 
 lock:  ## update requirements lock file
