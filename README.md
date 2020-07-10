@@ -19,6 +19,15 @@ The original repository created by Jamie is  still online under the name [notion
 
 </br></br>
 
+## Links
+
+- Package: [pypi.org/project/notion-py/](https://pypi.org/project/notion-py/)
+- Documentation: [arturtamborski.pl/notion-py/](https://arturtamborski.pl/notion-py/)
+
+
+</br></br>
+
+## Description
 
 (Fork of) Unofficial Python 3 client for Notion.so API v3.
 
