@@ -12,6 +12,7 @@ author = __author__
 release = __version__
 copyright = f"{date.today().year}, {__author__}"
 
+html_baseurl = "arturtamborski.pl"
 html_theme = "alabaster"
 
 extensions = [
@@ -25,5 +26,3 @@ napoleon_include_init_with_doc = True
 napoleon_google_docstring = False
 napoleon_use_param = True
 napoleon_use_rtype = True
-
-html_baseurl = "asd.pl"
