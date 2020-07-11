@@ -21,8 +21,11 @@ The original repository created by Jamie is  still online under the name [notion
 
 ## Links
 
-- Package: [pypi.org/project/notion-py/](https://pypi.org/project/notion-py/)
-- Documentation: [arturtamborski.pl/notion-py/](https://arturtamborski.pl/notion-py/)
+| Name |      Link   |  Status |
+|:-----|:-----------:|:-----:|
+| Package | [pypi.org/project/notion-py](https://pypi.org/project/notion-py/) | [![Package Build Status](https://github.com/arturtamborski/notion-py/workflows/Upload%20Python%20Package/badge.svg)](https://github.com/arturtamborski/notion-py/workflows/Upload%20Python%20Package/badge.svg) |
+| Documentation | [notion-py.readthedocs.io](https://notion-py.readthedocs.io) | [![Documentation Status](https://readthedocs.org/projects/notion-py/badge/?version=latest)](https://notion-py.readthedocs.io/en/latest/?badge=latest)
+ |
 
 
 </br></br>
