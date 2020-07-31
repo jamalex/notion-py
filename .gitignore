@@ -1,15 +1,18 @@
 *.pyc
-__pycache__
-build/
-dist/
 *.egg-info
-*_testing.py
-.pytest_cache
 
-# pipenv
+dist/
+build/
+public/
+docs/api/
+.pytest_cache/
+notion/__pycache__/
+tests/__pycache__/
+smoke_tests/__pycache__/
+
+# make clean will remove files above this line
+# --------------------------------------------
+
 .env
 .venv
-Pipfile
-
-# For any Pycharm Users
-.idea
+.idea/

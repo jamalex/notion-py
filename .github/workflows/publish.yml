@@ -5,24 +5,18 @@ on:
     types: [created]
 
 jobs:
-  deploy:
+  main:
     runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-python@v2
-        with:
-          python-version: '3.x'
-      - run: |
-          python -m pip install --upgrade pip
-          pip install setuptools wheel twine
+        with: { python-version: '3.x' }
 
-      - name: Build package
-        run: |
-          python setup.py sdist bdist_wheel
+      - run: make dev-install
+      - run: make build
 
-      - name: Publish wheel to PyPI
-        uses: pypa/gh-action-pypi-publish@master
+      - uses: pypa/gh-action-pypi-publish@master
         with:
           user: __token__
           password: ${{ secrets.PYPI_SECRET_TOKEN }}

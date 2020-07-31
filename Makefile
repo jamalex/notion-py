@@ -1,37 +1,53 @@
+.PHONY: help clean install dev-install self-install build format dry-format test docs lock
+
+
 help:  ## display this help
 	@awk 'BEGIN {FS = ":.*##"; printf "\nUsage:\n  make \033[36m<target>\033[0m\n\nTargets:\n"} \
 	/^[a-zA-Z_-]+:.*?##/ { printf "  \033[36m%17s\033[0m  %s\n", $$1, $$2 }' $(MAKEFILE_LIST)
 
 
-build: clean  ## build python wheel
-	python3 setup.py sdist bdist_wheel
+clean:  ## clean all temp files
+	rm -rf $$(sed '/# -/q' .gitignore | sed '/^\s*#/d ; /^\s*$$/d')
+	find . -name "*.pyc" -delete
 
 
-release: build  ## upload wheel to PyPI
-	twine upload -s dist/*
+install:  ## install requirements
+	python -m pip install --upgrade pip
+	python -m pip install -r requirements.lock
 
 
-clean:  ## clean all build files
-	find . -name "*.pyc" -print0 | xargs -0 rm -rf
-	rm -rf build dist notion.egg-info
+dev-install:  ## install dev requirements
+	python -m pip install --upgrade pip
+	python -m pip install -r dev-requirements.txt
 
 
-install:  ## install package locally
+self-install:  ## self-install the package
 	python setup.py install
 
 
-format:  ## reformat code with black
-	black .
+build:  ## build wheel package
+	python setup.py sdist bdist_wheel
 
 
-test:  ## run unit tests
-	pytest tests/
+format:  ## format code with black
+	python -m black .
 
 
-smoke-test:  ## run smoke tests
-	pytest smoke_tests/
+dry-format:  ## dry-format code with black
+	python -m black --check .
 
 
-lock:  ## update requirements lock file
-	pip install --upgrade -r requirements.txt
-	pip freeze > requirements.lock
+test:  ## test code with unit tests
+	python -m pytest tests/
+
+
+docs:  ## generate documentation in HTML
+	sphinx-apidoc -f -o docs/api/ notion/
+	sphinx-build -b dirhtml docs/ public/
+
+
+lock:  ## lock all dependency versions
+	python -m pip freeze | xargs pip uninstall -y
+	python -m pip install --upgrade -r requirements.txt
+	python -m pip freeze > requirements.lock
+

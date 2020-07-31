@@ -1,0 +1,8 @@
+setuptools
+wheel
+twine
+
+black
+pytest
+
+sphinx
