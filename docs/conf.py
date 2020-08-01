@@ -13,13 +13,14 @@ release = __version__
 copyright = f"{date.today().year}, {__author__}"
 
 html_baseurl = "arturtamborski.pl"
-html_theme = "alabaster"
+html_theme = "sphinx_rtd_theme"
 
 extensions = [
     "sphinx.ext.viewcode",
     "sphinx.ext.napoleon",
     "sphinx.ext.githubpages",
     "sphinx.ext.autodoc",
+    "sphinx_rtd_theme",
 ]
 
 napoleon_include_init_with_doc = True

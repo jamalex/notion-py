@@ -6,3 +6,4 @@ black
 pytest
 
 sphinx
+sphinx-rtd-theme
