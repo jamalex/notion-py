@@ -24,5 +24,11 @@ def notion(cache=[]):
     client = NotionClient(token_v2=token_v2)
     page = client.get_block(page_url)
 
+    # clean previous blocks
+    for child in page.children:
+        child.remove(permanently=True)
+
+    page.refresh()
+
     cache.append(NotionTestContext(client, page))
     return cache[0]

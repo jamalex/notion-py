@@ -41,6 +41,18 @@ test:  ## test code with unit tests
 	python -m pytest tests/
 
 
+try-test:  ## try test code with unit tests
+	python -m pytest --pdb tests/
+
+
+smoke-test:  ## test smoke code with unit tests
+	python -m pytest smoke_tests/
+
+
+try-smoke-test:  ## try smoke test code with unit tests
+	python -m pytest --pdb smoke_tests/
+
+
 docs:  ## generate documentation in HTML
 	sphinx-apidoc -f -o docs/api/ notion/
 	sphinx-build -b dirhtml docs/ public/

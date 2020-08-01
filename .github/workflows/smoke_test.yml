@@ -20,5 +20,4 @@ jobs:
         env:
           NOTION_TOKEN_V2: ${{ secrets.NOTION_TOKEN_V2 }}
           NOTION_PAGE_URL: ${{ secrets.NOTION_PAGE_URL }}
-        run: |
-          python -m pytest smoke_tests/
+        run: make smoke-test
