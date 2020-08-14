@@ -307,6 +307,14 @@ class RecordStore(object):
         calendar_by="",
         group_by="",
     ):
+        def parse_filter(filter):
+            return {
+                "property": filter["property"],
+                "filter": {
+                    "value": {"value": filter["value"]},
+                    "operator":  filter["operator"]
+                }
+            }
 
         # convert singletons into lists if needed
         if isinstance(aggregate, dict):
@@ -322,15 +330,17 @@ class RecordStore(object):
             "loader": {
                 "limit": 10000,
                 "loadContentCover": True,
-                "query": search,
+                "searchQuery": search,
                 "userLocale": "en",
                 "userTimeZone": str(get_localzone()),
                 "type": type,
             },
             "query": {
                 "aggregate": aggregate,
-                "filter": filter,
-                "filter_operator": filter_operator,
+                "filter": {
+                    "filters": [parse_filter(f) for f in filter],
+                    "operator": filter_operator,
+                },
                 "sort": sort,
             },
         }
