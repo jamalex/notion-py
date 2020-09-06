@@ -440,7 +440,7 @@ class CollectionRowBlock(PageBlock):
         if prop["type"] in ["file"]:
             val = (
                 [
-                    add_signed_prefix_as_needed(item[1][0][1], client=self._client)
+                    add_signed_prefix_as_needed(item[1][0][1], client=self._client, id=self.id)
                     for item in val
                     if item[0] != ","
                 ]
