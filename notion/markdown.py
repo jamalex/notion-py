@@ -187,7 +187,6 @@ def markdown_to_notion(markdown):
     for item in consolidated:
         item[0] = item[0].replace("⸻", "-")
 
-    pprint.pprint(consolidated)
     return consolidated
 
 
