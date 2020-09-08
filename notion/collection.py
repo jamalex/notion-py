@@ -488,7 +488,6 @@ class CollectionRowBlock(PageBlock):
         self.set(path, val)
 
     def _convert_python_to_notion(self, val, prop, identifier="<unknown>"):
-
         if prop["type"] in ["title", "text"]:
             if not val:
                 val = ""
