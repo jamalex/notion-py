@@ -1,5 +1,6 @@
 import commonmark
 import re
+import pprint
 
 from commonmark.dump import prepare
 
@@ -91,8 +92,13 @@ def _extract_text_and_format_from_ast(item):
 
     if item["type"] == "link":
         if 'destination' in item:
-            return item.get("literal", ""), ("a", item["destination"])
-
+            if item["destination"].startswith('page:'):
+                page_link = item["destination"][len('page:'):].replace('%E2%B8%BB','-')
+                page_link_parts = page_link.split('#')
+                return "‣", ("p", page_link_parts[0])
+            else:
+                return item.get("literal", ""), ("a", item["destination"])
+                
     return item.get("literal", ""), ()
 
 
@@ -181,6 +187,7 @@ def markdown_to_notion(markdown):
     for item in consolidated:
         item[0] = item[0].replace("⸻", "-")
 
+    pprint.pprint(consolidated)
     return consolidated
 
 
