@@ -150,12 +150,28 @@ class Collection(Record):
             for key, val in kwargs.items():
                 setattr(row, key, val)
             # make sure the new record is inserted at the end of each view
+            
             for view in self.parent.views:
                 if isinstance(view, CalendarView):
                     continue
                 view.set("page_sort", view.get("page_sort", []) + [row_id])
 
         return row
+
+    def add_rows(self, row_data):
+        rows_ids = []
+        for i in range(0, len(row_data), 1):
+            rows_ids.append(self._client.create_record("block", self, type="page"))
+
+        index = 0
+        while index < len(row_data):
+            with self._client.as_atomic_transaction():
+                last_index = min(index + 100, len(row_data))
+                while index < last_index:
+                    for key, val in row_data[len(row_data) - 1 - index].items():
+                        row = CollectionRowBlock(self._client, rows_ids[index])
+                        setattr(row, key, val)
+                    index += 1
 
     @property
     def parent(self):
