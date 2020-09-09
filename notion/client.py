@@ -2,6 +2,7 @@ import hashlib
 import json
 import re
 import uuid
+import traceback
 
 from requests import Session, HTTPError
 from requests.cookies import cookiejar_from_dict
@@ -210,7 +211,14 @@ class NotionClient(object):
             self._transaction_operations += operations
         else:
             data = {"operations": operations}
-            self.post("submitTransaction", data)
+
+            for i in range(0, 10, 1):
+                try:
+                    self.post("submitTransaction", data)
+                    break
+                except:
+                    traceback.print_exc()
+
             self._store.run_local_operations(operations)
 
     def query_collection(self, *args, **kwargs):
