@@ -35,7 +35,10 @@ def field_map(path, python_to_api=lambda x: x, api_to_python=lambda x: x):
 
     def fget(self):
         kwargs = {}
-        if "client" in signature(api_to_python).parameters:
+        if (
+            "client" in signature(api_to_python).parameters
+            and "id" in signature(api_to_python).parameters
+        ):
             kwargs["client"] = self._client
             kwargs["id"] = self.id
         return api_to_python(self.get(path), **kwargs)
