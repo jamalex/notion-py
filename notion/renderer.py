@@ -39,7 +39,13 @@ class BaseRenderer(object):
 			return ""
 		text = ""
 		for i in range(len(kids)):
-			text += self.render_block(kids[i], level=level)
+			preblock = None
+			postblock = None
+			if i > 0:
+				preblock = kids[i-1]
+			if i < len(kids)-2:
+				postblock = kids[i + 1]
+			text += self.render_block(kids[i], level=level, preblock=preblock, postblock=postblock)
 		return text
 
 
