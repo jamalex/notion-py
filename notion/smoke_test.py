@@ -115,10 +115,10 @@ def run_live_smoke_test(token_v2, parent_page_url_or_id):
     assert row not in client.search_blocks(search="otherworldly penguins")
 
     # Run an "aggregation" query
-    aggregate_params = [
-        {"property": "estimated_value", "aggregation_type": "sum", "id": "total_value"}
+    aggregation_params = [
+        {"property": "estimated_value", "aggregator": "sum", "id": "total_value"}
     ]
-    result = view.build_query(aggregate=aggregate_params).execute()
+    result = view.build_query(aggregations=aggregation_params).execute()
     assert result.get_aggregate("total_value") == 42
 
     # Run a "filtered" query
