@@ -60,13 +60,13 @@ def get_embed_link(source_url):
     return parse_qs(urlparse(url).query)["src"][0]
 
 
-def add_signed_prefix_as_needed(url, client=None):
+def add_signed_prefix_as_needed(url, client=None, id=""):
 
     if url is None:
         return
 
     if url.startswith(S3_URL_PREFIX):
-        url = SIGNED_URL_PREFIX + quote_plus(url)
+        url = SIGNED_URL_PREFIX + quote_plus(url) + "?table=block&id=" + id
         if client:
             url = client.session.head(url).headers.get("Location")
 
