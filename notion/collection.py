@@ -151,7 +151,7 @@ class Collection(Record):
                 setattr(row, key, val)
             # make sure the new record is inserted at the end of each view
             for view in self.parent.views:
-                if isinstance(view, CalendarView):
+                if view is None or isinstance(view, CalendarView):
                     continue
                 view.set("page_sort", view.get("page_sort", []) + [row_id])
 
