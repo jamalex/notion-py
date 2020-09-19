@@ -1,5 +1,6 @@
 import commonmark
 import re
+import pprint
 
 from commonmark.dump import prepare
 
@@ -90,8 +91,14 @@ def _extract_text_and_format_from_ast(item):
         return item.get("literal", ""), ("c",)
 
     if item["type"] == "link":
-        return item.get("literal", ""), ("a", item["destination"])
-
+        if 'destination' in item:
+            if item["destination"].startswith('page:'):
+                page_link = item["destination"][len('page:'):].replace('%E2%B8%BB','-')
+                page_link_parts = page_link.split('#')
+                return "‣", ("p", page_link_parts[0])
+            else:
+                return item.get("literal", ""), ("a", item["destination"])
+                
     return item.get("literal", ""), ()
 
 
