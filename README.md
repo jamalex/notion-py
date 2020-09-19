@@ -166,20 +166,28 @@ for row in result:
     print(row)
 
 # Run an "aggregation" query
-aggregate_params = [{
+aggregations = [{
     "property": "estimated_value",
-    "aggregation_type": "sum",
+    "aggregator": "sum",
     "id": "total_value",
 }]
 result = cv.build_query(aggregate=aggregate_params).execute()
 print("Total estimated value:", result.get_aggregate("total_value"))
 
-# Run a "filtered" query
-filter_params = [{
-    "property": "assigned_to",
-    "comparator": "enum_contains",
-    "value": client.current_user,
-}]
+# Run a "filtered" query (inspect network tab in browser for examples, on queryCollection calls)
+filter_params = {
+    "filters": [{
+        "filter": {
+            "value": {
+                "type": "exact",
+                "value": {"table": "notion_user", "id": client.current_user.id}
+            },
+            "operator": "person_contains"
+        },
+        "property": "assigned_to"
+    }],
+    "operator": "and"
+}
 result = cv.build_query(filter=filter_params).execute()
 print("Things assigned to me:", result)
 

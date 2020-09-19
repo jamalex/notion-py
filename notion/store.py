@@ -301,18 +301,18 @@ class RecordStore(object):
         search="",
         type="table",
         aggregate=[],
-        filter=[],
-        filter_operator="and",
+        aggregations=[],
+        filter={},
         sort=[],
         calendar_by="",
         group_by="",
     ):
 
+        assert not (aggregate and aggregations), "Use only one of `aggregate` or `aggregations` (old vs new format)"
+
         # convert singletons into lists if needed
         if isinstance(aggregate, dict):
             aggregate = [aggregate]
-        if isinstance(filter, dict):
-            filter = [filter]
         if isinstance(sort, dict):
             sort = [sort]
 
@@ -329,8 +329,8 @@ class RecordStore(object):
             },
             "query": {
                 "aggregate": aggregate,
+                "aggregations": aggregations,
                 "filter": filter,
-                "filter_operator": filter_operator,
                 "sort": sort,
             },
         }
