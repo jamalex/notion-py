@@ -300,20 +300,13 @@ class RecordStore(object):
         collection_view_id,
         search="",
         type="table",
-        aggregate=[], # deprecated
-        aggregations=[],
+        aggregate=[],
         filter=[],
         filter_operator="and",
         sort=[],
         calendar_by="",
         group_by="",
     ):
-
-        # check, for back-compatibility, whether old format was passed, and convert
-        if not aggregations:
-            aggregations = aggregate
-            for agg in aggregations:
-                agg["aggregator"] = agg.get("aggregator") or agg.pop("aggregation_type", "")
 
         # convert singletons into lists if needed
         if isinstance(aggregate, dict):
@@ -335,7 +328,7 @@ class RecordStore(object):
                 "type": type,
             },
             "query": {
-                "aggregations": aggregations,
+                "aggregate": aggregate,
                 "filter": filter,
                 "filter_operator": filter_operator,
                 "sort": sort,
@@ -345,11 +338,6 @@ class RecordStore(object):
         response = self._client.post("queryCollection", data).json()
 
         self.store_recordmap(response["recordMap"])
-
-        # import IPython; IPython.embed()
-
-        for i, agg, result in zip(range(len(aggregations)), aggregations, response["result"].get("aggregationResults", [])):
-            result["id"] = agg.get("id", i)
 
         return response["result"]
 

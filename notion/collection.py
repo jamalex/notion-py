@@ -286,8 +286,7 @@ class CollectionQuery(object):
         collection_view,
         search="",
         type="table",
-        aggregate=[], # deprecated
-        aggregations=[],
+        aggregate=[],
         filter=[],
         filter_operator="and",
         sort=[],
@@ -299,7 +298,6 @@ class CollectionQuery(object):
         self.search = search
         self.type = type
         self.aggregate = _normalize_query_list(aggregate, collection)
-        self.aggregations = _normalize_query_list(aggregations, collection)
         self.filter = _normalize_query_list(filter, collection)
         self.filter_operator = filter_operator
         self.sort = _normalize_query_list(sort, collection)
@@ -319,7 +317,6 @@ class CollectionQuery(object):
                 search=self.search,
                 type=self.type,
                 aggregate=self.aggregate,
-                aggregations=self.aggregations,
                 filter=self.filter,
                 filter_operator=self.filter_operator,
                 sort=self.sort,

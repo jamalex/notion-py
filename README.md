@@ -166,12 +166,12 @@ for row in result:
     print(row)
 
 # Run an "aggregation" query
-aggregation_params = [{
+aggregate_params = [{
     "property": "estimated_value",
-    "aggregator": "sum",
+    "aggregation_type": "sum",
     "id": "total_value",
 }]
-result = cv.build_query(aggregations=aggregation_params).execute()
+result = cv.build_query(aggregate=aggregate_params).execute()
 print("Total estimated value:", result.get_aggregate("total_value"))
 
 # Run a "filtered" query
