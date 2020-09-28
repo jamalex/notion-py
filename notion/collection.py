@@ -427,7 +427,7 @@ class CollectionRowBlock(PageBlock):
             val = notion_to_markdown(val) if val else ""
         if prop["type"] in ["number"]:
             if val is not None:
-                val = val[0][0]
+                val = val[0][0].replace(',', '')
                 if "." in val:
                     val = float(val)
                 else:
