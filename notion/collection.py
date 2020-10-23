@@ -155,7 +155,8 @@ class Collection(Record):
                 for view in self.parent.views:
                     if view is None or isinstance(view, CalendarView):
                         continue
-                    view.set("page_sort", view.get("page_sort", []) + [row_id])
+                    if view:
+                        view.set("page_sort", view.get("page_sort", []) + [row_id])
 
         return row
 
