@@ -78,13 +78,15 @@ def property_map(
             x = markdown_to_notion(x)
         return x
 
-    def api2py(x, client=None, id=''):
+    def api2py(x, client=None, id=""):
         x = x or [[""]]
         if markdown:
             x = notion_to_markdown(x)
         kwargs = {}
-        if "client" in signature(api_to_python).parameters:
+        params = signature(api_to_python).parameters
+        if "client" in params:
             kwargs["client"] = client
+        if "id" in params:
             kwargs["id"] = id
         return api_to_python(x, **kwargs)
 
