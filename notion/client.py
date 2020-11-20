@@ -78,6 +78,24 @@ class NotionClient(object):
         self.current_space = self.get_space(list(records["space"].keys())[0])
         return records
 
+    def get_email_uid(self):
+        response = self.post("getSpaces", {}).json()
+        return {
+            response[uid]["notion_user"][uid]["value"]["email"]: uid
+            for uid in response.keys()
+        }
+
+    def set_user_by_uid(self, user_id):
+        self.session.headers.update({"x-notion-active-user-header": user_id})
+        self._update_user_info()
+
+    def set_user_by_email(self, email):
+        email_uid_dict = self.get_email_uid()
+        uid = email_uid_dict.get(email)
+        if not uid:
+            raise Exception(f"Not Found {email}, Available IDs: {list(email_uid_dict)}")
+        self.set_user_by_uid(uid)
+
     def get_top_level_pages(self):
         records = self._update_user_info()
         return [self.get_block(bid) for bid in records["block"].keys()]
