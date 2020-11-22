@@ -51,7 +51,14 @@ class NotionClient(object):
     for internal use -- the main one you'll likely want to use is `get_block`.
     """
 
-    def __init__(self, token_v2=None, monitor=False, start_monitoring=False, enable_caching=False, cache_key=None):
+    def __init__(
+        self,
+        token_v2=None,
+        monitor=False,
+        start_monitoring=False,
+        enable_caching=False,
+        cache_key=None,
+    ):
         self.session = create_session()
         self.session.cookies = cookiejar_from_dict({"token_v2": token_v2})
         if enable_caching:
@@ -242,15 +249,47 @@ class NotionClient(object):
         return response["results"]
 
     def search_blocks(self, search, limit=25):
+        return self.search(query=search, limit=limit)
+
+    def search(
+        self,
+        query="",
+        search_type="BlocksInSpace",
+        limit=100,
+        sort="Relevance",
+        source="quick_find",
+        isDeletedOnly=False,
+        excludeTemplates=False,
+        isNavigableOnly=False,
+        requireEditPermissions=False,
+        ancestors=[],
+        createdBy=[],
+        editedBy=[],
+        lastEditedTime={},
+        createdTime={},
+    ):
         data = {
-            "query": search,
-            "table": "space",
-            "id": self.current_space.id,
+            "type": search_type,
+            "query": query,
+            "spaceId": self.current_space.id,
             "limit": limit,
+            "filters": {
+                "isDeletedOnly": isDeletedOnly,
+                "excludeTemplates": excludeTemplates,
+                "isNavigableOnly": isNavigableOnly,
+                "requireEditPermissions": requireEditPermissions,
+                "ancestors": ancestors,
+                "createdBy": createdBy,
+                "editedBy": editedBy,
+                "lastEditedTime": lastEditedTime,
+                "createdTime": createdTime,
+            },
+            "sort": sort,
+            "source": source,
         }
-        response = self.post("searchBlocks", data).json()
+        response = self.post("search", data).json()
         self._store.store_recordmap(response["recordMap"])
-        return [self.get_block(block_id) for block_id in response["results"]]
+        return [self.get_block(result["id"]) for result in response["results"]]
 
     def create_record(self, table, parent, **kwargs):
 
