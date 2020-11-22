@@ -19,7 +19,11 @@ def operation_update_last_edited(user_id, block_id):
     fields, so we want to send those too, for consistency -- this convenience function constructs the operation.
     """
     return {
-        "args": {"last_edited_by": user_id, "last_edited_time": now()},
+        "args": {
+            "last_edited_by_id": user_id,
+            "last_edited_by_table": "notion_user",
+            "last_edited_time": now(),
+        },
         "command": "update",
         "id": block_id,
         "path": [],
