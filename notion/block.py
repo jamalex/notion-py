@@ -533,12 +533,15 @@ class PageBlock(BasicBlock):
         api_to_python=add_signed_prefix_as_needed,
         python_to_api=remove_signed_prefix_as_needed,
     )
-    
+
     cover = field_map(
         "format.page_cover",
         api_to_python=add_signed_prefix_as_needed,
         python_to_api=remove_signed_prefix_as_needed,
     )
+
+    locked = field_map("format.block_locked")
+
 
 class BulletedListBlock(BasicBlock):
 
@@ -731,6 +734,8 @@ class CollectionViewBlock(MediaBlock):
     def description(self, val):
         self.collection.description = val
 
+    locked = field_map("format.block_locked")
+
     def _str_fields(self):
         return super()._str_fields() + ["title", "collection"]
 
@@ -790,7 +795,7 @@ class CollectionViewPageBlock(CollectionViewBlock):
         api_to_python=add_signed_prefix_as_needed,
         python_to_api=remove_signed_prefix_as_needed,
     )
-    
+
     cover = field_map(
         "format.page_cover",
         api_to_python=add_signed_prefix_as_needed,
