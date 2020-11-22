@@ -77,19 +77,33 @@ class NotionClient(object):
 
     def start_monitoring(self):
         self._monitor.poll_async()
+    
+    def _fetch_guest_space_data(self, records):
+        """
+        guest users have an empty `space` dict, so get the space_id from the `space_view` dict instead,
+        and fetch the space data from the getPublicSpaceData endpoint.
+
+        Note: This mutates the records dict
+        """
+        space_id = list(records["space_view"].values())[0]["value"]["space_id"]
+
+        space_data = self.post(
+            "getPublicSpaceData", {"type": "space-ids", "spaceIds": [space_id]}
+        ).json()
+
+        records["space"] = {
+            space["id"]: {"value": space} for space in space_data["results"]
+        }
+
 
     def _update_user_info(self):
         records = self.post("loadUserContent", {}).json()["recordMap"]
+        if not records["space"]:
+            self._fetch_guest_space_data(records)
+
         self._store.store_recordmap(records)
         self.current_user = self.get_user(list(records["notion_user"].keys())[0])
-
-        try:
-            self.current_space = self.get_space(list(records["space"].keys())[0])
-        except:
-            # if guest user, use fallback value for space_id
-            self.current_space = self.get_space(
-                list(records["space_view"].values())[0]["value"]["space_id"]
-            )
+        self.current_space = self.get_space(list(records["space"].keys())[0])
         return records
 
     def get_email_uid(self):
