@@ -201,7 +201,7 @@ result = cv.build_query(sort=sort_params).execute()
 print("Sorted results, showing most valuable first:", result)
 ```
 
-Note: You can combine `filter`, `aggregate`, and `sort`. See more examples of queries by setting up complex views in Notion, and then inspecting `cv.get("query")`
+Note: You can combine `filter`, `aggregate`, and `sort`. See more examples of queries by setting up complex views in Notion, and then inspecting the full query: `cv.get("query2")`.
 
 You can also see [more examples in action in the smoke test runner](https://github.com/jamalex/notion-py/blob/master/notion/smoke_test.py). Run it using:
 
