@@ -252,6 +252,7 @@ If you'd like to support notion-py development, please consider [donating to my 
 
 - [md2notion](https://github.com/Cobertos/md2notion): import Markdown files to Notion
 - [notion-export-ics](https://github.com/evertheylen/notion-export-ics): Export Notion Databases to ICS calendar files
+- [notion-tqdm](https://github.com/shunyooo/notion-tqdm): Progress Bar displayed in Notion like tqdm
 
 # TODO
 
