@@ -126,6 +126,25 @@ class Collection(Record):
             properties.append(prop)
         return properties
 
+    def clear_properties(self):
+        """
+        Clears all the properties of the given Collection database.
+        """
+        self.set('schema', {})
+
+    def set_property(self, property_id, name, property_type="text", slug=""):
+        """
+        Sets a given property for a Collection database
+        """
+        schema = self.get('schema')
+        schema[property_id] = {
+            'id': property_id,
+            'name': name,
+            'type': property_type,
+            'slug': slug
+        }
+        self.set('schema', schema)
+
     def get_schema_property(self, identifier):
         """
         Look up a property in the collection's schema, by "property id" (generally a 4-char string),
