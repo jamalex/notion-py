@@ -100,7 +100,11 @@ class NotionClient(object):
         email_uid_dict = self.get_email_uid()
         uid = email_uid_dict.get(email)
         if not uid:
-            raise Exception("Not Found {email}, Available IDs: {list(email_uid_dict)}")
+            raise Exception(
+                "Requested email address {email} not found; available addresses: {available}".format(
+                    email=email, available=list(email_uid_dict)
+                )
+            )
         self.set_user_by_uid(uid)
 
     def get_top_level_pages(self):
