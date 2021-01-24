@@ -542,6 +542,17 @@ class PageBlock(BasicBlock):
 
     locked = field_map("format.block_locked")
 
+    def get_backlinks(self):
+        """
+        Returns a list of blocks that referencing the current PageBlock. Note that only PageBlocks support backlinks.
+        """
+        data = self._client.post(
+            "getBacklinksForBlock",
+            {"blockId": self.id},
+        ).json()
+        if "backlinks" not in data:
+            return None
+        return [self._client.get_block(block.get("mentioned_from").get("block_id")) for block in data.get("backlinks")]
 
 class BulletedListBlock(BasicBlock):
 
