@@ -2,6 +2,7 @@ from cached_property import cached_property
 from copy import deepcopy
 from datetime import datetime, date
 from tzlocal import get_localzone
+from uuid import uuid1
 
 from .block import Block, PageBlock, Children, CollectionViewBlock
 from .logger import logger
@@ -89,6 +90,33 @@ class NotionDate(object):
         return [["‣", [["d", data]]]]
 
 
+class NotionSelect(object):
+    valid_colors = ["default", "gray", "brown", "orange", "yellow",
+                    "green", "blue", "purple", "pink", "red"]
+    id = None
+    color = "default"
+    value = None
+
+    def __init__(self, value, color="default"):
+        self.id = str(uuid1())
+        self.color = self.set_color(color)
+        self.value = value
+
+    def set_color(self, color):
+        if color not in self.valid_colors:
+            if self.color:
+                return self.color
+            return "default"
+        return color
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "value": self.value,
+            "color": self.color
+        }
+
+
 class Collection(Record):
     """
     A "collection" corresponds to what's sometimes called a "database" in the Notion UI.
@@ -125,6 +153,20 @@ class Collection(Record):
             prop.update(item)
             properties.append(prop)
         return properties
+
+    def check_schema_select_options(self, prop, values):
+        """
+        Check and update the prop dict with new values
+        """
+        schema_update = False
+        current_options = list([p["value"].lower() for p in prop["options"]])
+        if not isinstance(values, list):
+            values = [values]
+        for v in values:
+            if v.lower() not in current_options:
+                schema_update = True
+                prop["options"].append(NotionSelect(v).to_dict())
+        return schema_update, prop
 
     def get_schema_property(self, identifier):
         """
@@ -491,6 +533,10 @@ class CollectionRowBlock(PageBlock):
             raise AttributeError(
                 "Object does not have property '{}'".format(identifier)
             )
+        if prop["type"] in ["select"] or prop["type"] in ["multi_select"]:
+            schema_update, prop = self.collection.check_schema_select_options(prop, val)
+            if schema_update:
+                self.collection.set("schema.{}.options".format(prop["id"]), prop["options"])
 
         path, val = self._convert_python_to_notion(val, prop, identifier=identifier)
 
