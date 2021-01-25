@@ -37,6 +37,9 @@ def run_live_smoke_test(token_v2, parent_page_url_or_id):
     assert video in page.children.filter(VideoBlock)
     assert col_list not in page.children.filter(VideoBlock)
 
+    # check that the parent does not yet consider this page to be backlinking
+    assert page not in parent_page.get_backlinks()
+
     page.children.add_new(SubheaderBlock, title="A link back to where I came from:")
     alias = page.children.add_alias(parent_page)
     assert alias.is_alias
@@ -47,6 +50,9 @@ def run_live_smoke_test(token_v2, parent_page_url_or_id):
             page.parent.get_browseable_url()
         ),
     )
+
+    # check that the parent now knows about the backlink
+    assert page in parent_page.get_backlinks()
 
     # ensure __repr__ methods are not breaking
     repr(page)

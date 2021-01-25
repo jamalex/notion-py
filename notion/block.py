@@ -550,9 +550,16 @@ class PageBlock(BasicBlock):
             "getBacklinksForBlock",
             {"blockId": self.id},
         ).json()
-        if "backlinks" not in data:
-            return None
-        return [self._client.get_block(block.get("mentioned_from").get("block_id")) for block in data.get("backlinks")]
+        backlinks = []
+        for block in data.get("backlinks") or []:
+            mention = block.get("mentioned_from")
+            if not mention:
+                continue
+            block_id = mention.get("block_id") or mention.get("parent_block_id")
+            if block_id:
+                print("Getting block", block_id)
+                backlinks.append(self._client.get_block(block_id))
+        return backlinks
 
 class BulletedListBlock(BasicBlock):
 
