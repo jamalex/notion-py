@@ -8,6 +8,7 @@ from requests.cookies import cookiejar_from_dict
 from urllib.parse import urljoin
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
+from getpass import getpass
 
 from .block import Block, BLOCK_TYPES
 from .collection import (
@@ -61,10 +62,16 @@ class NotionClient(object):
         start_monitoring=False,
         enable_caching=False,
         cache_key=None,
+        email=None,
+        password=None,
         client_specified_retry=None,
     ):
         self.session = create_session(client_specified_retry)
-        self.session.cookies = cookiejar_from_dict({"token_v2": token_v2})
+        if token_v2:
+            self.session.cookies = cookiejar_from_dict({"token_v2": token_v2})
+        else:
+            self._set_token(email=email, password=password)
+
         if enable_caching:
             cache_key = cache_key or hashlib.sha256(token_v2.encode()).hexdigest()
             self._store = RecordStore(self, cache_key=cache_key)
@@ -76,11 +83,18 @@ class NotionClient(object):
                 self.start_monitoring()
         else:
             self._monitor = None
-        if token_v2:
-            self._update_user_info()
+
+        self._update_user_info()
 
     def start_monitoring(self):
         self._monitor.poll_async()
+
+    def _set_token(self, email=None, password=None):
+        if not email:
+            email = input(f'Enter Your Notion Email\n')
+        if not password:
+            password = getpass(f'Enter Your Notion Password\n')
+        self.post("loginWithEmail", {"email":email,"password":password}).json()
 
     def _update_user_info(self):
         records = self.post("loadUserContent", {}).json()["recordMap"]
