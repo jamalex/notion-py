@@ -18,11 +18,13 @@ class NotionDate(object):
     start = None
     end = None
     timezone = None
+    reminder = None
 
-    def __init__(self, start, end=None, timezone=None):
+    def __init__(self, start, end=None, timezone=None, reminder=None):
         self.start = start
         self.end = end
         self.timezone = timezone
+        self.reminder = reminder
 
     @classmethod
     def from_notion(cls, obj):
@@ -34,8 +36,9 @@ class NotionDate(object):
             return None
         start = cls._parse_datetime(data.get("start_date"), data.get("start_time"))
         end = cls._parse_datetime(data.get("end_date"), data.get("end_time"))
-        timezone = data.get("timezone")
-        return cls(start, end=end, timezone=timezone)
+        timezone = data.get("time_zone")
+        reminder = data.get("reminder")
+        return cls(start, end=end, timezone=timezone, reminder=reminder)
 
     @classmethod
     def _parse_datetime(cls, date_str, time_str):
@@ -66,12 +69,12 @@ class NotionDate(object):
         return name
 
     def to_notion(self):
-
         if self.end:
             self.start, self.end = sorted([self.start, self.end])
 
         start_date, start_time = self._format_datetime(self.start)
         end_date, end_time = self._format_datetime(self.end)
+        reminder = self.reminder
 
         if not start_date:
             return []
@@ -80,6 +83,9 @@ class NotionDate(object):
 
         if end_date:
             data["end_date"] = end_date
+
+        if reminder:
+            data["reminder"] = reminder
 
         if "time" in data["type"]:
             data["time_zone"] = str(self.timezone or get_localzone())
