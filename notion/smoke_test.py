@@ -121,6 +121,14 @@ def run_live_smoke_test(token_v2, parent_page_url_or_id):
     row2.where_to = "https://learningequality.org"
     row2.category = "C"
 
+    # check that options "C" have been added to the schema
+    for prop in ["=d{|", "=d{q"]:
+        assert cvb.collection.get("schema.{}.options.2.value".format(prop)) == "C"
+
+    # check that existing options "A" haven't been affected
+    for prop in ["=d{|", "=d{q"]:
+        assert cvb.collection.get("schema.{}.options.0.id".format(prop)) == get_collection_schema()[prop]["options"][0]["id"]
+
     # Run a filtered/sorted query using the view's default parameters
     result = view.default_query().execute()
     assert row1 == result[0]
@@ -224,11 +232,6 @@ def get_collection_schema():
                     "id": "002c7016-ac57-413a-90a6-64afadfb0c44",
                     "value": "B",
                 },
-                {
-                    "color": "blue",
-                    "id": "77f431ab-aeb2-48c2-9e40-3a630fb86a5b",
-                    "value": "C",
-                },
             ],
         },
         "=d{q": {
@@ -244,11 +247,6 @@ def get_collection_schema():
                     "color": "default",
                     "id": "502c7016-ac57-413a-90a6-64afadfb0c44",
                     "value": "B",
-                },
-                {
-                    "color": "blue",
-                    "id": "57f431ab-aeb2-48c2-9e40-3a630fb86a5b",
-                    "value": "C",
                 },
             ],
         },

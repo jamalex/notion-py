@@ -557,7 +557,6 @@ class PageBlock(BasicBlock):
                 continue
             block_id = mention.get("block_id") or mention.get("parent_block_id")
             if block_id:
-                print("Getting block", block_id)
                 backlinks.append(self._client.get_block(block_id))
         return backlinks
 

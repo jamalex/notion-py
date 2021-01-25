@@ -163,7 +163,7 @@ class Collection(Record):
         if not isinstance(values, list):
             values = [values]
         for v in values:
-            if v.lower() not in current_options:
+            if v and v.lower() not in current_options:
                 schema_update = True
                 prop["options"].append(NotionSelect(v).to_dict())
         return schema_update, prop
@@ -581,7 +581,7 @@ class CollectionRowBlock(PageBlock):
             if not isinstance(val, list):
                 val = [val]
             for v in val:
-                if v.lower() not in valid_options:
+                if v and v.lower() not in valid_options:
                     raise ValueError(
                         "Value '{}' not acceptable for property '{}' (valid options: {})".format(
                             v, identifier, valid_options
