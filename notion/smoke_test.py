@@ -2,6 +2,7 @@ from datetime import datetime
 
 from .client import *
 from .block import *
+from .collection import NotionDate
 
 
 def run_live_smoke_test(token_v2, parent_page_url_or_id):
@@ -37,6 +38,9 @@ def run_live_smoke_test(token_v2, parent_page_url_or_id):
     assert video in page.children.filter(VideoBlock)
     assert col_list not in page.children.filter(VideoBlock)
 
+    # check that the parent does not yet consider this page to be backlinking
+    assert page not in parent_page.get_backlinks()
+
     page.children.add_new(SubheaderBlock, title="A link back to where I came from:")
     alias = page.children.add_alias(parent_page)
     assert alias.is_alias
@@ -47,6 +51,9 @@ def run_live_smoke_test(token_v2, parent_page_url_or_id):
             page.parent.get_browseable_url()
         ),
     )
+
+    # check that the parent now knows about the backlink
+    assert page in parent_page.get_backlinks()
 
     # ensure __repr__ methods are not breaking
     repr(page)
@@ -102,6 +109,12 @@ def run_live_smoke_test(token_v2, parent_page_url_or_id):
     row1.category = None
     row1.category = "B"
 
+    start = datetime.strptime("2020-01-01 09:30", "%Y-%m-%d %H:%M")
+    end = datetime.strptime("2020-01-05 20:45", "%Y-%m-%d %H:%M")
+    timezone = "America/Los_Angeles"
+    reminder= {'unit': 'minute', 'value': 30}
+    row1.some_date = NotionDate(start, end=end, timezone=timezone, reminder=reminder)
+
     # add another row
     row2 = cvb.collection.add_row(person=client.current_user, title="Metallic penguins")
     assert row2.person == [client.current_user]
@@ -114,6 +127,14 @@ def run_live_smoke_test(token_v2, parent_page_url_or_id):
     row2.tags = ["A", "B"]
     row2.where_to = "https://learningequality.org"
     row2.category = "C"
+
+    # check that options "C" have been added to the schema
+    for prop in ["=d{|", "=d{q"]:
+        assert cvb.collection.get("schema.{}.options.2.value".format(prop)) == "C"
+
+    # check that existing options "A" haven't been affected
+    for prop in ["=d{|", "=d{q"]:
+        assert cvb.collection.get("schema.{}.options.0.id".format(prop)) == get_collection_schema()[prop]["options"][0]["id"]
 
     # Run a filtered/sorted query using the view's default parameters
     result = view.default_query().execute()
@@ -163,6 +184,13 @@ def run_live_smoke_test(token_v2, parent_page_url_or_id):
     result = view.build_query(sort=sort_params).execute()
     assert row1 == result[1]
     assert row2 == result[0]
+
+    # Test that reminders and time zone's work properly
+    row1.refresh()
+    assert row1.some_date.start == start
+    assert row1.some_date.end == end
+    assert row1.some_date.timezone == timezone
+    assert row1.some_date.reminder == reminder
 
     print(
         "Check it out and make sure it looks good, then press any key here to delete it..."
@@ -218,11 +246,6 @@ def get_collection_schema():
                     "id": "002c7016-ac57-413a-90a6-64afadfb0c44",
                     "value": "B",
                 },
-                {
-                    "color": "blue",
-                    "id": "77f431ab-aeb2-48c2-9e40-3a630fb86a5b",
-                    "value": "C",
-                },
             ],
         },
         "=d{q": {
@@ -239,16 +262,12 @@ def get_collection_schema():
                     "id": "502c7016-ac57-413a-90a6-64afadfb0c44",
                     "value": "B",
                 },
-                {
-                    "color": "blue",
-                    "id": "57f431ab-aeb2-48c2-9e40-3a630fb86a5b",
-                    "value": "C",
-                },
             ],
         },
         "LL[(": {"name": "Person", "type": "person"},
         "4Jv$": {"name": "Estimated value", "type": "number"},
         "OBcJ": {"name": "Where to?", "type": "url"},
+        "TwR:":  {"name": "Some Date", "type": "date"},
         "dV$q": {"name": "Files", "type": "file"},
         "title": {"name": "Name", "type": "title"},
     }

@@ -28,18 +28,21 @@ from .user import User
 from .utils import extract_id, now
 
 
-def create_session():
+def create_session(client_specified_retry=None):
     """
     retry on 502
     """
     session = Session()
-    retry = Retry(
-        5,
-        backoff_factor=0.3,
-        status_forcelist=(502,),
-        # CAUTION: adding 'POST' to this list which is not technically idempotent
-        method_whitelist=("POST", "HEAD", "TRACE", "GET", "PUT", "OPTIONS", "DELETE"),
-    )
+    if client_specified_retry:
+        retry = client_specified_retry
+    else:
+        retry = Retry(
+            5,
+            backoff_factor=0.3,
+            status_forcelist=(502,),
+            # CAUTION: adding 'POST' to this list which is not technically idempotent
+            method_whitelist=("POST", "HEAD", "TRACE", "GET", "PUT", "OPTIONS", "DELETE"),
+        )
     adapter = HTTPAdapter(max_retries=retry)
     session.mount("https://", adapter)
     return session
@@ -61,8 +64,9 @@ class NotionClient(object):
         cache_key=None,
         email=None,
         password=None,
+        client_specified_retry=None,
     ):
-        self.session = create_session()
+        self.session = create_session(client_specified_retry)
         if token_v2:
             self.session.cookies = cookiejar_from_dict({"token_v2": token_v2})
         else:
@@ -114,7 +118,11 @@ class NotionClient(object):
         email_uid_dict = self.get_email_uid()
         uid = email_uid_dict.get(email)
         if not uid:
-            raise Exception(f"Not Found {email}, Available IDs: {list(email_uid_dict)}")
+            raise Exception(
+                "Requested email address {email} not found; available addresses: {available}".format(
+                    email=email, available=list(email_uid_dict)
+                )
+            )
         self.set_user_by_uid(uid)
 
     def get_top_level_pages(self):

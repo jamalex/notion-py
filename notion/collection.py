@@ -2,6 +2,7 @@ from cached_property import cached_property
 from copy import deepcopy
 from datetime import datetime, date
 from tzlocal import get_localzone
+from uuid import uuid1
 
 from .block import Block, PageBlock, Children, CollectionViewBlock
 from .logger import logger
@@ -17,11 +18,13 @@ class NotionDate(object):
     start = None
     end = None
     timezone = None
+    reminder = None
 
-    def __init__(self, start, end=None, timezone=None):
+    def __init__(self, start, end=None, timezone=None, reminder=None):
         self.start = start
         self.end = end
         self.timezone = timezone
+        self.reminder = reminder
 
     @classmethod
     def from_notion(cls, obj):
@@ -33,8 +36,9 @@ class NotionDate(object):
             return None
         start = cls._parse_datetime(data.get("start_date"), data.get("start_time"))
         end = cls._parse_datetime(data.get("end_date"), data.get("end_time"))
-        timezone = data.get("timezone")
-        return cls(start, end=end, timezone=timezone)
+        timezone = data.get("time_zone")
+        reminder = data.get("reminder")
+        return cls(start, end=end, timezone=timezone, reminder=reminder)
 
     @classmethod
     def _parse_datetime(cls, date_str, time_str):
@@ -65,12 +69,12 @@ class NotionDate(object):
         return name
 
     def to_notion(self):
-
         if self.end:
             self.start, self.end = sorted([self.start, self.end])
 
         start_date, start_time = self._format_datetime(self.start)
         end_date, end_time = self._format_datetime(self.end)
+        reminder = self.reminder
 
         if not start_date:
             return []
@@ -80,6 +84,9 @@ class NotionDate(object):
         if end_date:
             data["end_date"] = end_date
 
+        if reminder:
+            data["reminder"] = reminder
+
         if "time" in data["type"]:
             data["time_zone"] = str(self.timezone or get_localzone())
             data["start_time"] = start_time or "00:00"
@@ -87,6 +94,33 @@ class NotionDate(object):
                 data["end_time"] = end_time or "00:00"
 
         return [["‣", [["d", data]]]]
+
+
+class NotionSelect(object):
+    valid_colors = ["default", "gray", "brown", "orange", "yellow",
+                    "green", "blue", "purple", "pink", "red"]
+    id = None
+    color = "default"
+    value = None
+
+    def __init__(self, value, color="default"):
+        self.id = str(uuid1())
+        self.color = self.set_color(color)
+        self.value = value
+
+    def set_color(self, color):
+        if color not in self.valid_colors:
+            if self.color:
+                return self.color
+            return "default"
+        return color
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "value": self.value,
+            "color": self.color
+        }
 
 
 class Collection(Record):
@@ -125,6 +159,20 @@ class Collection(Record):
             prop.update(item)
             properties.append(prop)
         return properties
+
+    def check_schema_select_options(self, prop, values):
+        """
+        Check and update the prop dict with new values
+        """
+        schema_update = False
+        current_options = list([p["value"].lower() for p in prop["options"]])
+        if not isinstance(values, list):
+            values = [values]
+        for v in values:
+            if v and v.lower() not in current_options:
+                schema_update = True
+                prop["options"].append(NotionSelect(v).to_dict())
+        return schema_update, prop
 
     def get_schema_property(self, identifier):
         """
@@ -491,6 +539,10 @@ class CollectionRowBlock(PageBlock):
             raise AttributeError(
                 "Object does not have property '{}'".format(identifier)
             )
+        if prop["type"] in ["select"] or prop["type"] in ["multi_select"]:
+            schema_update, prop = self.collection.check_schema_select_options(prop, val)
+            if schema_update:
+                self.collection.set("schema.{}.options".format(prop["id"]), prop["options"])
 
         path, val = self._convert_python_to_notion(val, prop, identifier=identifier)
 
@@ -535,7 +587,7 @@ class CollectionRowBlock(PageBlock):
             if not isinstance(val, list):
                 val = [val]
             for v in val:
-                if v.lower() not in valid_options:
+                if v and v.lower() not in valid_options:
                     raise ValueError(
                         "Value '{}' not acceptable for property '{}' (valid options: {})".format(
                             v, identifier, valid_options
