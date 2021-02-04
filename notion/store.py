@@ -289,11 +289,12 @@ class RecordStore(object):
 
     def store_recordmap(self, recordmap):
         for table, records in recordmap.items():
-            for id, record in records.items():
-                if record is not None:
-                    self._update_record(
-                        table, id, value=record.get("value"), role=record.get("role")
-                    )
+            if records is not None:
+                for id, record in records.items():
+                    if record is not None:
+                        self._update_record(
+                            table, id, value=record.get("value"), role=record.get("role")
+                        )
 
     def call_query_collection(
         self,
