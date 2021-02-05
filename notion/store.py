@@ -289,8 +289,11 @@ class RecordStore(object):
 
     def store_recordmap(self, recordmap):
         for table, records in recordmap.items():
-            if records is None: continue
+            if not isinstance(records, dict):
+                continue
             for id, record in records.items():
+                if not isinstance(record, dict):
+                    continue
                 self._update_record(
                     table, id, value=record.get("value"), role=record.get("role")
                 )
