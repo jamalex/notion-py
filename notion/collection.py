@@ -10,7 +10,12 @@ from .maps import property_map, field_map
 from .markdown import markdown_to_notion, notion_to_markdown
 from .operations import build_operation
 from .records import Record
-from .utils import add_signed_prefix_as_needed, extract_id, remove_signed_prefix_as_needed, slugify
+from .utils import (
+    add_signed_prefix_as_needed,
+    extract_id,
+    remove_signed_prefix_as_needed,
+    slugify,
+)
 
 
 class NotionDate(object):
@@ -97,8 +102,18 @@ class NotionDate(object):
 
 
 class NotionSelect(object):
-    valid_colors = ["default", "gray", "brown", "orange", "yellow",
-                    "green", "blue", "purple", "pink", "red"]
+    valid_colors = [
+        "default",
+        "gray",
+        "brown",
+        "orange",
+        "yellow",
+        "green",
+        "blue",
+        "purple",
+        "pink",
+        "red",
+    ]
     id = None
     color = "default"
     value = None
@@ -116,11 +131,7 @@ class NotionSelect(object):
         return color
 
     def to_dict(self):
-        return {
-            "id": self.id,
-            "value": self.value,
-            "color": self.color
-        }
+        return {"id": self.id, "value": self.value, "color": self.color}
 
 
 class Collection(Record):
@@ -320,7 +331,9 @@ def _normalize_query_data(data, collection, recursing=False):
     if not recursing:
         data = deepcopy(data)
     if isinstance(data, list):
-        return [_normalize_query_data(item, collection, recursing=True) for item in data]
+        return [
+            _normalize_query_data(item, collection, recursing=True) for item in data
+        ]
     elif isinstance(data, dict):
         # convert slugs to property ids
         if "property" in data:
@@ -348,7 +361,9 @@ class CollectionQuery(object):
         calendar_by="",
         group_by="",
     ):
-        assert not (aggregate and aggregations), "Use only one of `aggregate` or `aggregations` (old vs new format)"
+        assert not (
+            aggregate and aggregations
+        ), "Use only one of `aggregate` or `aggregations` (old vs new format)"
         self.collection = collection
         self.collection_view = collection_view
         self.search = search
@@ -379,7 +394,7 @@ class CollectionQuery(object):
                 calendar_by=self.calendar_by,
                 group_by=self.group_by,
             ),
-            self
+            self,
         )
 
 
@@ -497,7 +512,9 @@ class CollectionRowBlock(PageBlock):
         if prop["type"] in ["file"]:
             val = (
                 [
-                    add_signed_prefix_as_needed(item[1][0][1], client=self._client, id=self.id)
+                    add_signed_prefix_as_needed(
+                        item[1][0][1], client=self._client, id=self.id
+                    )
                     for item in val
                     if item[0] != ","
                 ]
@@ -542,7 +559,9 @@ class CollectionRowBlock(PageBlock):
         if prop["type"] in ["select"] or prop["type"] in ["multi_select"]:
             schema_update, prop = self.collection.check_schema_select_options(prop, val)
             if schema_update:
-                self.collection.set("schema.{}.options".format(prop["id"]), prop["options"])
+                self.collection.set(
+                    "schema.{}.options".format(prop["id"]), prop["options"]
+                )
 
         path, val = self._convert_python_to_notion(val, prop, identifier=identifier)
 
@@ -686,7 +705,9 @@ class QueryResult(object):
         self._client = collection._client
         self._block_ids = self._get_block_ids(result)
         self.aggregates = result.get("aggregationResults", [])
-        self.aggregate_ids = [agg.get("id") for agg in (query.aggregate or query.aggregations)]
+        self.aggregate_ids = [
+            agg.get("id") for agg in (query.aggregate or query.aggregations)
+        ]
         self.query = query
 
     def _get_block_ids(self, result):

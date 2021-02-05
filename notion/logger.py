@@ -12,6 +12,7 @@ logger = logging.getLogger("notion")
 def enable_debugging():
     set_log_level(logging.DEBUG)
 
+
 def set_log_level(level):
     logger.setLevel(level)
     handler.setLevel(level)
@@ -35,4 +36,8 @@ else:
     elif NOTIONPY_LOG_LEVEL == "error":
         set_log_level(logging.ERROR)
     else:
-        raise Exception("Invalid value for environment variable NOTIONPY_LOG_LEVEL: {}".format(NOTIONPY_LOG_LEVEL))
+        raise Exception(
+            "Invalid value for environment variable NOTIONPY_LOG_LEVEL: {}".format(
+                NOTIONPY_LOG_LEVEL
+            )
+        )

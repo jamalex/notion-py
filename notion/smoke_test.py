@@ -24,7 +24,10 @@ def run_live_smoke_test(token_v2, parent_page_url_or_id):
     col1kid = col1.children.add_new(
         TextBlock, title="Some formatting: *italic*, **bold**, ***both***!"
     )
-    assert col1kid.title.replace("_", "*") == "Some formatting: *italic*, **bold**, ***both***!"
+    assert (
+        col1kid.title.replace("_", "*")
+        == "Some formatting: *italic*, **bold**, ***both***!"
+    )
     assert col1kid.title_plaintext == "Some formatting: italic, bold, both!"
     col2.children.add_new(TodoBlock, title="I should be unchecked")
     col2.children.add_new(TodoBlock, title="I should be checked", checked=True)
@@ -112,7 +115,7 @@ def run_live_smoke_test(token_v2, parent_page_url_or_id):
     start = datetime.strptime("2020-01-01 09:30", "%Y-%m-%d %H:%M")
     end = datetime.strptime("2020-01-05 20:45", "%Y-%m-%d %H:%M")
     timezone = "America/Los_Angeles"
-    reminder= {'unit': 'minute', 'value': 30}
+    reminder = {"unit": "minute", "value": 30}
     row1.some_date = NotionDate(start, end=end, timezone=timezone, reminder=reminder)
 
     # add another row
@@ -134,7 +137,10 @@ def run_live_smoke_test(token_v2, parent_page_url_or_id):
 
     # check that existing options "A" haven't been affected
     for prop in ["=d{|", "=d{q"]:
-        assert cvb.collection.get("schema.{}.options.0.id".format(prop)) == get_collection_schema()[prop]["options"][0]["id"]
+        assert (
+            cvb.collection.get("schema.{}.options.0.id".format(prop))
+            == get_collection_schema()[prop]["options"][0]["id"]
+        )
 
     # Run a filtered/sorted query using the view's default parameters
     result = view.default_query().execute()
@@ -163,17 +169,19 @@ def run_live_smoke_test(token_v2, parent_page_url_or_id):
 
     # Run a "filtered" query
     filter_params = {
-        "filters": [{
-            "filter": {
-                "value": {
-                    "type": "exact",
-                    "value": {"table": "notion_user", "id": client.current_user.id}
+        "filters": [
+            {
+                "filter": {
+                    "value": {
+                        "type": "exact",
+                        "value": {"table": "notion_user", "id": client.current_user.id},
+                    },
+                    "operator": "person_does_not_contain",
                 },
-                "operator": "person_does_not_contain"
-            },
-            "property": "person"
-        }],
-        "operator": "and"
+                "property": "person",
+            }
+        ],
+        "operator": "and",
     }
     result = view.build_query(filter=filter_params).execute()
     assert row1 in result
@@ -267,7 +275,7 @@ def get_collection_schema():
         "LL[(": {"name": "Person", "type": "person"},
         "4Jv$": {"name": "Estimated value", "type": "number"},
         "OBcJ": {"name": "Where to?", "type": "url"},
-        "TwR:":  {"name": "Some Date", "type": "date"},
+        "TwR:": {"name": "Some Date", "type": "date"},
         "dV$q": {"name": "Files", "type": "file"},
         "title": {"name": "Name", "type": "title"},
     }

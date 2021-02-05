@@ -41,7 +41,15 @@ def create_session(client_specified_retry=None):
             backoff_factor=0.3,
             status_forcelist=(502, 503, 504),
             # CAUTION: adding 'POST' to this list which is not technically idempotent
-            method_whitelist=("POST", "HEAD", "TRACE", "GET", "PUT", "OPTIONS", "DELETE"),
+            method_whitelist=(
+                "POST",
+                "HEAD",
+                "TRACE",
+                "GET",
+                "PUT",
+                "OPTIONS",
+                "DELETE",
+            ),
         )
     adapter = HTTPAdapter(max_retries=retry)
     session.mount("https://", adapter)
@@ -91,10 +99,10 @@ class NotionClient(object):
 
     def _set_token(self, email=None, password=None):
         if not email:
-            email = input(f'Enter Your Notion Email\n')
+            email = input("Enter your Notion email address:\n")
         if not password:
-            password = getpass(f'Enter Your Notion Password\n')
-        self.post("loginWithEmail", {"email":email,"password":password}).json()
+            password = getpass("Enter your Notion password:\n")
+        self.post("loginWithEmail", {"email": email, "password": password}).json()
 
     def _update_user_info(self):
         records = self.post("loadUserContent", {}).json()["recordMap"]

@@ -546,10 +546,7 @@ class PageBlock(BasicBlock):
         """
         Returns a list of blocks that referencing the current PageBlock. Note that only PageBlocks support backlinks.
         """
-        data = self._client.post(
-            "getBacklinksForBlock",
-            {"blockId": self.id},
-        ).json()
+        data = self._client.post("getBacklinksForBlock", {"blockId": self.id}).json()
         backlinks = []
         for block in data.get("backlinks") or []:
             mention = block.get("mentioned_from")
@@ -559,6 +556,7 @@ class PageBlock(BasicBlock):
             if block_id:
                 backlinks.append(self._client.get_block(block_id))
         return backlinks
+
 
 class BulletedListBlock(BasicBlock):
 
