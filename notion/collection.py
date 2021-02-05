@@ -786,6 +786,45 @@ class GalleryQueryResult(QueryResult):
     _type = "gallery"
 
 
+def is_relation_present(collection1, collection2):
+    # returns true if collection1 has a relation to collection2
+    list_of_bools = []
+    for property_id, content in collection1.get()['schema'].items():
+        if content['type'] == 'relation' and content['collection_id'] == collection2.id:
+            list_of_bools.append(True)
+    if len(list_of_bools):
+        return True
+    else:
+        return False
+
+
+def _set_collection_properties(collection, relation_id_suffix='', **properties):
+    # the property id is the keyword provided in **properties
+    # relation_id_suffix is an optional suffix for this id
+    # if you enter a property id that already exists, that will be edited
+    for property_id, content in properties.items():
+        collection.get()['schema'][''.join([property_id, relation_id_suffix])] = content
+    collection.set(path=['schema'], value=collection.get()['schema'])
+
+
+def make_relation(collection1, collection2, add_multiple_relations=False):
+    # if you want to add multiple relations or collection1 does not have a relation to collection2,
+    # create a new relation between them
+    # otherwise don't
+    if add_multiple_relations or not is_relation_present(collection1, collection2):
+        relation_dict = {'name': f'Relation to {collection2.name}',
+                         'type': 'relation',
+                         'collection_id': collection2.id
+                         }
+        _set_collection_properties(collection1, relation_id_suffix=f"{collection2.name}",
+                                   RelationTo=relation_dict)
+        print('Made relation')
+        return True
+    else:
+        print('Relation already present')
+        return False
+
+
 COLLECTION_VIEW_TYPES = {
     cls._type: cls
     for cls in locals().values()
