@@ -186,19 +186,19 @@ class Collection(Record):
                 return prop
         return None
 
-    def add_row(self, update_views=True, sourceBlockId=None, **kwargs):
+    def add_row(self, update_views=True, source_block=None, **kwargs):
         """
         Create a new empty CollectionRowBlock under this collection, and return the instance.
-        Specify 'sourceBlockId' to create a row from a template block.
+        Specify 'source_block' to create a row from a template block.
         """
 
         row_id = self._client.create_record("block", self, type="page")
         row = CollectionRowBlock(self._client, row_id)
 
         # User wants to create a row from a template
-        if sourceBlockId:
+        if source_block:
             # The source block can be either an ID or a URL
-            source_block = self._client.get_block(sourceBlockId)
+            source_block = self._client.get_block(source_block)
             # Start a duplication task
             data = self._client.post(
                 "enqueueTask",
