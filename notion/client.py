@@ -401,7 +401,7 @@ class NotionClient(object):
         
         return None
         
-    def wait_for_task(self, task_id, interval=1, tries=5):
+    def wait_for_task(self, task_id, interval=1, tries=10):
         """
         Wait for a task by looping 'tries' times ever 'interval' seconds.
         The 'interval' parameter can be used to specify milliseconds using double (e.g 0.75).
