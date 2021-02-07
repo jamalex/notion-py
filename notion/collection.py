@@ -549,7 +549,8 @@ class CollectionRowBlock(PageBlock):
             allprops[propid] = self.get_property(propid)
         return allprops
 
-    def set_property(self, identifier, val):
+#added a parameter to toggle when user needs to change only the reminder
+    def set_property(self, identifier, val, reminder=False):
 
         prop = self.collection.get_schema_property(identifier)
         if prop is None:
@@ -562,6 +563,38 @@ class CollectionRowBlock(PageBlock):
                 self.collection.set(
                     "schema.{}.options".format(prop["id"]), prop["options"]
                 )
+        #created a function to check if val is in correct format and return NotionDate
+        #object in the correct format with updated reminder
+        def set_reminder(date, val):
+            try:
+                unit = val['unit']
+                value = val['value']
+            except:
+                raise AttributeError(
+                    "unit and value keys cannot be empty in val dictionary."
+                )
+            # "time" variable can be null, and usually will be ignored by Notion API
+            try:
+                val['time']
+            except:
+                val['time'] = None
+            #setting new reminder to the NotionDate object
+            date.reminder = {
+                'time':val['time'],
+                'unit': unit,
+                'value':value
+            }
+            return date
+
+        #if reminder is True and prop type is date, update reminder before sending to the API
+        if reminder and prop['type'] in ['date']:
+            #if val is not a dict it is in wrong format
+            if type(val) != dict:
+                raise TypeError(
+                "val parameter must be a dict."
+            )
+            #set_reminder funct will return the updated NotionDate object
+            val = set_reminder(self.get_property(identifier), val)
 
         path, val = self._convert_python_to_notion(val, prop, identifier=identifier)
 
