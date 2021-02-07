@@ -183,9 +183,6 @@ class Collection(Record):
     def update_schema_properties(self, props):
         """
         Update current schema with props.
-        Change the current properties is not supported fow now. The steps to produce such feature:
-        - find notion scheme property id by name (the original id in collection are random, or base64)
-        - update current scheme with props found id
         """
         schema = self.get("schema")
         # check that props has a valid type
