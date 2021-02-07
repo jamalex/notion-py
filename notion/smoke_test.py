@@ -281,6 +281,14 @@ def get_collection_schema():
                 },
             ],
         },
+        "eselect": {
+            "name": "eselect",
+            "type": "select",
+        },
+        "emselect": {
+            "name": "emselect",
+            "type": "multi_select",
+        },
         "LL[(": {"name": "Person", "type": "person"},
         "4Jv$": {"name": "Estimated value", "type": "number"},
         "OBcJ": {"name": "Where to?", "type": "url"},
