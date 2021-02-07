@@ -187,14 +187,7 @@ class Collection(Record):
         - find notion scheme property id by name (the original id in collection are random, or base64)
         - update current scheme with props found id
         """
-        schema = dict()
-        for prop in self.get_schema_properties():
-            schema.update({
-                prop["id"]: dict(
-                    name=prop["name"],
-                    type=prop["type"]
-                )
-            })
+        schema = self.get("schema")
         # check that props has a valid type
         for _id, prop in props.items():
             if prop["type"] not in self._schema_types:
