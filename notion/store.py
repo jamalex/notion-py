@@ -289,7 +289,11 @@ class RecordStore(object):
 
     def store_recordmap(self, recordmap):
         for table, records in recordmap.items():
+            if not isinstance(records, dict):
+                continue
             for id, record in records.items():
+                if not isinstance(record, dict):
+                    continue
                 self._update_record(
                     table, id, value=record.get("value"), role=record.get("role")
                 )
@@ -308,7 +312,9 @@ class RecordStore(object):
         group_by="",
     ):
 
-        assert not (aggregate and aggregations), "Use only one of `aggregate` or `aggregations` (old vs new format)"
+        assert not (
+            aggregate and aggregations
+        ), "Use only one of `aggregate` or `aggregations` (old vs new format)"
 
         # convert singletons into lists if needed
         if isinstance(aggregate, dict):

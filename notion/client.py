@@ -8,6 +8,7 @@ from requests.cookies import cookiejar_from_dict
 from urllib.parse import urljoin
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
+from getpass import getpass
 
 from .block import Block, BLOCK_TYPES
 from .collection import (
@@ -27,18 +28,29 @@ from .user import User
 from .utils import extract_id, now
 
 
-def create_session():
+def create_session(client_specified_retry=None):
     """
     retry on 502
     """
     session = Session()
-    retry = Retry(
-        5,
-        backoff_factor=0.3,
-        status_forcelist=(502,),
-        # CAUTION: adding 'POST' to this list which is not technically idempotent
-        method_whitelist=("POST", "HEAD", "TRACE", "GET", "PUT", "OPTIONS", "DELETE"),
-    )
+    if client_specified_retry:
+        retry = client_specified_retry
+    else:
+        retry = Retry(
+            5,
+            backoff_factor=0.3,
+            status_forcelist=(502, 503, 504),
+            # CAUTION: adding 'POST' to this list which is not technically idempotent
+            method_whitelist=(
+                "POST",
+                "HEAD",
+                "TRACE",
+                "GET",
+                "PUT",
+                "OPTIONS",
+                "DELETE",
+            ),
+        )
     adapter = HTTPAdapter(max_retries=retry)
     session.mount("https://", adapter)
     return session
@@ -58,9 +70,16 @@ class NotionClient(object):
         start_monitoring=False,
         enable_caching=False,
         cache_key=None,
+        email=None,
+        password=None,
+        client_specified_retry=None,
     ):
-        self.session = create_session()
-        self.session.cookies = cookiejar_from_dict({"token_v2": token_v2})
+        self.session = create_session(client_specified_retry)
+        if token_v2:
+            self.session.cookies = cookiejar_from_dict({"token_v2": token_v2})
+        else:
+            self._set_token(email=email, password=password)
+
         if enable_caching:
             cache_key = cache_key or hashlib.sha256(token_v2.encode()).hexdigest()
             self._store = RecordStore(self, cache_key=cache_key)
@@ -72,14 +91,42 @@ class NotionClient(object):
                 self.start_monitoring()
         else:
             self._monitor = None
-        if token_v2:
-            self._update_user_info()
+
+        self._update_user_info()
 
     def start_monitoring(self):
         self._monitor.poll_async()
+    
+    def _fetch_guest_space_data(self, records):
+        """
+        guest users have an empty `space` dict, so get the space_id from the `space_view` dict instead,
+        and fetch the space data from the getPublicSpaceData endpoint.
+
+        Note: This mutates the records dict
+        """
+        space_id = list(records["space_view"].values())[0]["value"]["space_id"]
+
+        space_data = self.post(
+            "getPublicSpaceData", {"type": "space-ids", "spaceIds": [space_id]}
+        ).json()
+
+        records["space"] = {
+            space["id"]: {"value": space} for space in space_data["results"]
+        }
+
+
+    def _set_token(self, email=None, password=None):
+        if not email:
+            email = input("Enter your Notion email address:\n")
+        if not password:
+            password = getpass("Enter your Notion password:\n")
+        self.post("loginWithEmail", {"email": email, "password": password}).json()
 
     def _update_user_info(self):
         records = self.post("loadUserContent", {}).json()["recordMap"]
+        if not records["space"]:
+            self._fetch_guest_space_data(records)
+
         self._store.store_recordmap(records)
         self.current_user = self.get_user(list(records["notion_user"].keys())[0])
         self.current_space = self.get_space(list(records["space"].keys())[0])
@@ -100,7 +147,11 @@ class NotionClient(object):
         email_uid_dict = self.get_email_uid()
         uid = email_uid_dict.get(email)
         if not uid:
-            raise Exception(f"Not Found {email}, Available IDs: {list(email_uid_dict)}")
+            raise Exception(
+                "Requested email address {email} not found; available addresses: {available}".format(
+                    email=email, available=list(email_uid_dict)
+                )
+            )
         self.set_user_by_uid(uid)
 
     def get_top_level_pages(self):
