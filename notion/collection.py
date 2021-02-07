@@ -151,6 +151,7 @@ class Collection(Record):
     )
     cover = field_map("cover")
     _schema_types = [
+        "text",
         "number",
         "select",
         "multi_select",
