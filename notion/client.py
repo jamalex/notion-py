@@ -265,7 +265,7 @@ class NotionClient(object):
         response.raise_for_status()
         return response
 
-    def submit_transaction(self, operations, update_last_edited=True):
+    def submit_transaction(self, operations, generate_update_last_edited=True, updated_blocks=None):
 
         if not operations:
             return
@@ -273,10 +273,14 @@ class NotionClient(object):
         if isinstance(operations, dict):
             operations = [operations]
 
-        if update_last_edited:
-            updated_blocks = set(
-                [op["id"] for op in operations if op["table"] == "block"]
-            )
+        if generate_update_last_edited:
+            generated_updated_blocks = [op["id"] for op in operations if op["table"] == "block"]
+            if updated_blocks is not None and type(updated_blocks) is list:
+                generated_updated_blocks.extend(updated_blocks)
+
+            updated_blocks = set(generated_updated_blocks)
+
+        if updated_blocks is not None:
             operations += [
                 operation_update_last_edited(self.current_user.id, block_id)
                 for block_id in updated_blocks

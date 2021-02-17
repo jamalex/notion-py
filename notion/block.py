@@ -4,6 +4,7 @@ import random
 import requests
 import time
 import uuid
+import base64
 
 from cached_property import cached_property
 from copy import deepcopy
@@ -557,6 +558,59 @@ class PageBlock(BasicBlock):
                 backlinks.append(self._client.get_block(block_id))
         return backlinks
 
+    def set_full_width(self, full_width):
+        args = {"page_full_width": full_width}
+        self._client.submit_transaction(
+            [build_operation(
+                id=self.id, path=["format"], args=args, command="update"
+            )]
+        )
+        self.refresh()
+
+    def set_small_text(self, small_text):
+        args = {"page_small_text": small_text}
+        self._client.submit_transaction(
+            [build_operation(
+                id=self.id, path=["format"], args=args, command="update"
+            )]
+        )
+        self.refresh()
+
+    def set_page_font(self, page_font):
+        args = {"page_font": page_font}
+        self._client.submit_transaction(
+            [build_operation(
+                id=self.id, path=["format"], args=args, command="update"
+            )]
+        )
+        self.refresh()
+
+    def set_page_icon(self, icon):
+
+        self._client.submit_transaction(
+            [build_operation(
+                id=self.id, path=["format", "page_icon"], args=icon, command="set"
+            )])
+
+    def set_page_cover(self, args, page_cover_position=0.5):
+
+        postion_args = {"page_cover_position": page_cover_position}
+        self._client.submit_transaction(
+            [build_operation(
+                id=self.id, path=["format"], args=postion_args, command="update"
+            ),build_operation(
+                id=self.id, path=["format", "page_cover"], args=args, command="set"
+            )]
+        )
+
+    def set_page_cover_position(self, page_cover_position):
+
+        postion_args = {"page_cover_position": page_cover_position}
+        self._client.submit_transaction(
+            [build_operation(
+                id=self.id, path=["format"], args=postion_args, command="update"
+            )]
+        )
 
 class BulletedListBlock(BasicBlock):
 

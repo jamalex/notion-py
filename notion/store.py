@@ -340,6 +340,8 @@ class RecordStore(object):
                 "sort": sort,
             },
         }
+        if group_by!="":
+            data["query"]["group_by"] = group_by
 
         response = self._client.post("queryCollection", data).json()
 
