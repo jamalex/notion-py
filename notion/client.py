@@ -96,7 +96,7 @@ class NotionClient(object):
 
     def start_monitoring(self):
         self._monitor.poll_async()
-    
+
     def _fetch_guest_space_data(self, records):
         """
         guest users have an empty `space` dict, so get the space_id from the `space_view` dict instead,
@@ -209,7 +209,7 @@ class NotionClient(object):
         """
         # if it's a URL for a database page, try extracting the collection and view IDs
         if url_or_id.startswith("http"):
-            match = re.search("([a-f0-9]{32})\?v=([a-f0-9]{32})", url_or_id)
+            match = re.search(r"([a-f0-9]{32})\?v=([a-f0-9]{32})", url_or_id)
             if not match:
                 raise Exception("Invalid collection view URL")
             block_id, view_id = match.groups()
