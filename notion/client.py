@@ -310,7 +310,7 @@ class NotionClient(object):
         data = {
             "query": search,
             "parentId": parent_id,
-            "limit": 999,
+            "limit": 100,
             "spaceId": self.current_space.id,
         }
         response = self.post("searchPagesWithParent", data).json()

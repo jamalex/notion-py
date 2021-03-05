@@ -277,7 +277,7 @@ class RecordStore(object):
 
         data = {
             "pageId": page_id,
-            "limit": 999,
+            "limit": 100,
             "cursor": {"stack": []},
             "chunkNumber": 0,
             "verticalColumns": False,
@@ -326,7 +326,7 @@ class RecordStore(object):
             "collectionId": collection_id,
             "collectionViewId": collection_view_id,
             "loader": {
-                "limit": 999,
+                "limit": 1000000,
                 "loadContentCover": True,
                 "searchQuery": search,
                 "userLocale": "en",
