@@ -2,6 +2,7 @@ from cached_property import cached_property
 from copy import deepcopy
 from datetime import datetime, date
 from tzlocal import get_localzone
+from uuid import uuid1
 
 from .block import Block, PageBlock, Children, CollectionViewBlock
 from .logger import logger
@@ -9,7 +10,12 @@ from .maps import property_map, field_map
 from .markdown import markdown_to_notion, notion_to_markdown
 from .operations import build_operation
 from .records import Record
-from .utils import add_signed_prefix_as_needed, remove_signed_prefix_as_needed, slugify
+from .utils import (
+    add_signed_prefix_as_needed,
+    extract_id,
+    remove_signed_prefix_as_needed,
+    slugify,
+)
 
 
 class NotionDate(object):
@@ -17,11 +23,13 @@ class NotionDate(object):
     start = None
     end = None
     timezone = None
+    reminder = None
 
-    def __init__(self, start, end=None, timezone=None):
+    def __init__(self, start, end=None, timezone=None, reminder=None):
         self.start = start
         self.end = end
         self.timezone = timezone
+        self.reminder = reminder
 
     @classmethod
     def from_notion(cls, obj):
@@ -33,8 +41,9 @@ class NotionDate(object):
             return None
         start = cls._parse_datetime(data.get("start_date"), data.get("start_time"))
         end = cls._parse_datetime(data.get("end_date"), data.get("end_time"))
-        timezone = data.get("timezone")
-        return cls(start, end=end, timezone=timezone)
+        timezone = data.get("time_zone")
+        reminder = data.get("reminder")
+        return cls(start, end=end, timezone=timezone, reminder=reminder)
 
     @classmethod
     def _parse_datetime(cls, date_str, time_str):
@@ -65,12 +74,12 @@ class NotionDate(object):
         return name
 
     def to_notion(self):
-
         if self.end:
             self.start, self.end = sorted([self.start, self.end])
 
         start_date, start_time = self._format_datetime(self.start)
         end_date, end_time = self._format_datetime(self.end)
+        reminder = self.reminder
 
         if not start_date:
             return []
@@ -80,6 +89,9 @@ class NotionDate(object):
         if end_date:
             data["end_date"] = end_date
 
+        if reminder:
+            data["reminder"] = reminder
+
         if "time" in data["type"]:
             data["time_zone"] = str(self.timezone or get_localzone())
             data["start_time"] = start_time or "00:00"
@@ -87,6 +99,39 @@ class NotionDate(object):
                 data["end_time"] = end_time or "00:00"
 
         return [["‣", [["d", data]]]]
+
+
+class NotionSelect(object):
+    valid_colors = [
+        "default",
+        "gray",
+        "brown",
+        "orange",
+        "yellow",
+        "green",
+        "blue",
+        "purple",
+        "pink",
+        "red",
+    ]
+    id = None
+    color = "default"
+    value = None
+
+    def __init__(self, value, color="default"):
+        self.id = str(uuid1())
+        self.color = self.set_color(color)
+        self.value = value
+
+    def set_color(self, color):
+        if color not in self.valid_colors:
+            if self.color:
+                return self.color
+            return "default"
+        return color
+
+    def to_dict(self):
+        return {"id": self.id, "value": self.value, "color": self.color}
 
 
 class Collection(Record):
@@ -126,6 +171,20 @@ class Collection(Record):
             properties.append(prop)
         return properties
 
+    def check_schema_select_options(self, prop, values):
+        """
+        Check and update the prop dict with new values
+        """
+        schema_update = False
+        current_options = list([p["value"].lower() for p in prop["options"]])
+        if not isinstance(values, list):
+            values = [values]
+        for v in values:
+            if v and v.lower() not in current_options:
+                schema_update = True
+                prop["options"].append(NotionSelect(v).to_dict())
+        return schema_update, prop
+
     def get_schema_property(self, identifier):
         """
         Look up a property in the collection's schema, by "property id" (generally a 4-char string),
@@ -138,7 +197,7 @@ class Collection(Record):
                 return prop
         return None
 
-    def add_row(self, **kwargs):
+    def add_row(self, update_views=True, **kwargs):
         """
         Create a new empty CollectionRowBlock under this collection, and return the instance.
         """
@@ -149,11 +208,13 @@ class Collection(Record):
         with self._client.as_atomic_transaction():
             for key, val in kwargs.items():
                 setattr(row, key, val)
-            # make sure the new record is inserted at the end of each view
-            for view in self.parent.views:
-                if isinstance(view, CalendarView):
-                    continue
-                view.set("page_sort", view.get("page_sort", []) + [row_id])
+
+            if update_views:
+                # make sure the new record is inserted at the end of each view
+                for view in self.parent.views:
+                    if view is None or isinstance(view, CalendarView):
+                        continue
+                    view.set("page_sort", view.get("page_sort", []) + [row_id])
 
         return row
 
@@ -270,7 +331,9 @@ def _normalize_query_data(data, collection, recursing=False):
     if not recursing:
         data = deepcopy(data)
     if isinstance(data, list):
-        return [_normalize_query_data(item, collection, recursing=True) for item in data]
+        return [
+            _normalize_query_data(item, collection, recursing=True) for item in data
+        ]
     elif isinstance(data, dict):
         # convert slugs to property ids
         if "property" in data:
@@ -298,7 +361,9 @@ class CollectionQuery(object):
         calendar_by="",
         group_by="",
     ):
-        assert not (aggregate and aggregations), "Use only one of `aggregate` or `aggregations` (old vs new format)"
+        assert not (
+            aggregate and aggregations
+        ), "Use only one of `aggregate` or `aggregations` (old vs new format)"
         self.collection = collection
         self.collection_view = collection_view
         self.search = search
@@ -329,7 +394,7 @@ class CollectionQuery(object):
                 calendar_by=self.calendar_by,
                 group_by=self.group_by,
             ),
-            self
+            self,
         )
 
 
@@ -447,7 +512,9 @@ class CollectionRowBlock(PageBlock):
         if prop["type"] in ["file"]:
             val = (
                 [
-                    add_signed_prefix_as_needed(item[1][0][1], client=self._client)
+                    add_signed_prefix_as_needed(
+                        item[1][0][1], client=self._client, id=self.id
+                    )
                     for item in val
                     if item[0] != ","
                 ]
@@ -470,7 +537,7 @@ class CollectionRowBlock(PageBlock):
             val = self.get(prop["type"])
             val = datetime.utcfromtimestamp(val / 1000)
         if prop["type"] in ["created_by", "last_edited_by"]:
-            val = self.get(prop["type"])
+            val = self.get(prop["type"] + "_id")
             val = self._client.get_user(val)
 
         return val
@@ -489,6 +556,12 @@ class CollectionRowBlock(PageBlock):
             raise AttributeError(
                 "Object does not have property '{}'".format(identifier)
             )
+        if prop["type"] in ["select"] or prop["type"] in ["multi_select"]:
+            schema_update, prop = self.collection.check_schema_select_options(prop, val)
+            if schema_update:
+                self.collection.set(
+                    "schema.{}.options".format(prop["id"]), prop["options"]
+                )
 
         path, val = self._convert_python_to_notion(val, prop, identifier=identifier)
 
@@ -533,7 +606,7 @@ class CollectionRowBlock(PageBlock):
             if not isinstance(val, list):
                 val = [val]
             for v in val:
-                if v.lower() not in valid_options:
+                if v and v.lower() not in valid_options:
                     raise ValueError(
                         "Value '{}' not acceptable for property '{}' (valid options: {})".format(
                             v, identifier, valid_options
@@ -632,7 +705,9 @@ class QueryResult(object):
         self._client = collection._client
         self._block_ids = self._get_block_ids(result)
         self.aggregates = result.get("aggregationResults", [])
-        self.aggregate_ids = [agg.get("id") for agg in (query.aggregate or query.aggregations)]
+        self.aggregate_ids = [
+            agg.get("id") for agg in (query.aggregate or query.aggregations)
+        ]
         self.query = query
 
     def _get_block_ids(self, result):

@@ -23,7 +23,7 @@ Note: the latest version of **notion-py** requires Python 3.5 or greater.
 ```Python
 from notion.client import NotionClient
 
-# Obtain the `token_v2` value by inspecting your browser cookies on a logged-in session on Notion.so
+# Obtain the `token_v2` value by inspecting your browser cookies on a logged-in (non-guest) session on Notion.so
 client = NotionClient(token_v2="<token_v2>")
 
 # Replace this URL with the URL of the page you want to edit
@@ -92,7 +92,8 @@ collection = client.get_collection(COLLECTION_ID) # get an existing collection
 cvb = page.children.add_new(CollectionViewBlock, collection=collection)
 view = cvb.views.add_new(view_type="table")
 
-# now the filters and format options on the view can bet set as desired.
+# Before the view can be browsed in Notion, 
+# the filters and format options on the view should be set as desired.
 # 
 # for example:
 #   view.set("query", ...)
@@ -200,22 +201,58 @@ result = cv.build_query(sort=sort_params).execute()
 print("Sorted results, showing most valuable first:", result)
 ```
 
-Note: You can combine `filter`, `aggregate`, and `sort`. See more examples of queries by setting up complex views in Notion, and then inspecting `cv.get("query")`
+Note: You can combine `filter`, `aggregate`, and `sort`. See more examples of queries by setting up complex views in Notion, and then inspecting the full query: `cv.get("query2")`.
 
 You can also see [more examples in action in the smoke test runner](https://github.com/jamalex/notion-py/blob/master/notion/smoke_test.py). Run it using:
 
 ```sh
-python run_smoke_test.py
+python run_smoke_test.py --page [YOUR_NOTION_PAGE_URL] --token [YOUR_NOTION_TOKEN_V2]
 ```
 
-# _Quick plug: Learning Equality is hiring!_
+## Example: Lock/Unlock A Page
+```Python
+from notion.client import NotionClient
 
-We're a [small nonprofit](https://learningequality.org/) with [global impact](https://learningequality.org/ka-lite/map/), building [exciting tech](https://learningequality.org/kolibri/)! We're currently [hiring](https://grnh.se/6epyi21) -- come join us!
+# Obtain the `token_v2` value by inspecting your browser cookies on a logged-in session on Notion.so
+client = NotionClient(token_v2="<token_v2>")
+
+# Replace this URL with the URL of the page or database you want to edit
+page = client.get_block("https://www.notion.so/myorg/Test-c0d20a71c0944985ae96e661ccc99821")
+
+# The "locked" property is available on PageBlock and CollectionViewBlock objects
+# Set it to True to lock the page/database
+page.locked = True
+# and False to unlock it again
+page.locked = False
+```
+
+## Example: Set the current user for multi-account user
+
+```python
+from notion.client import NotionClient
+client = NotionClient(token_v2="<token_v2>")
+
+# The initial current_user of a multi-account user may be an unwanted user
+print(client.current_user.email) # → not_the_desired@email.co.jp
+
+# Set current_user to the desired user
+client.set_user_by_email('desired@email.com')
+print(client.current_user.email) # → desired@email.com
+
+# You can also set the current_user by uid.
+client.set_user_by_uid('<uid>')
+print(client.current_user.email) # → desired@email.com
+```
+
+# _Quick plug: Learning Equality needs your support!_
+
+If you'd like to support notion-py development, please consider [donating to my open-source nonprofit, Learning Equality](https://learningequality.org/donate/), since when I'm not working on notion-py, it probably means I'm heads-down fundraising for our global education work (bringing resources like Khan Academy to communities with no Internet). COVID has further amplified needs, with over a billion kids stuck at home, and over half of them without the connectivity they need for distance learning. You can now also [support our work via GitHub Sponsors](https://github.com/sponsors/learningequality)!
 
 # Related Projects
 
 - [md2notion](https://github.com/Cobertos/md2notion): import Markdown files to Notion
 - [notion-export-ics](https://github.com/evertheylen/notion-export-ics): Export Notion Databases to ICS calendar files
+- [notion-tqdm](https://github.com/shunyooo/notion-tqdm): Progress Bar displayed in Notion like tqdm
 
 # TODO
 

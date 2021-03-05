@@ -1,5 +1,7 @@
 import commonmark
 import re
+import html
+from xml.dom import minidom
 
 from commonmark.dump import prepare
 
@@ -69,9 +71,9 @@ delimiters = {
     "\u3000",
 }
 
-_NOTION_TO_MARKDOWN_MAPPER = {"i": "☃", "b": "☃☃", "s": "~~", "c": "`"}
+_NOTION_TO_MARKDOWN_MAPPER = {"i": "☃", "b": "☃☃", "s": "~~", "c": "`", "e": "$$"}
 
-FORMAT_PRECEDENCE = ["s", "b", "i", "a", "c"]
+FORMAT_PRECEDENCE = ["s", "b", "i", "a", "c", "e"]
 
 
 def _extract_text_and_format_from_ast(item):
@@ -79,6 +81,12 @@ def _extract_text_and_format_from_ast(item):
     if item["type"] == "html_inline":
         if item.get("literal", "") == "<s>":
             return "", ("s",)
+        if item.get("literal", "").startswith("<latex"):
+            elem = minidom.parseString(
+                item.get("literal", "") + "</latex>"
+            ).documentElement
+            equation = elem.attributes["equation"].value
+            return "", ("e", equation)
 
     if item["type"] == "emph":
         return item.get("literal", ""), ("i",)
@@ -90,7 +98,7 @@ def _extract_text_and_format_from_ast(item):
         return item.get("literal", ""), ("c",)
 
     if item["type"] == "link":
-        return item.get("literal", ""), ("a", item["destination"])
+        return item.get("literal", ""), ("a", item.get("destination", "#"))
 
     return item.get("literal", ""), ()
 
@@ -117,6 +125,18 @@ def markdown_to_notion(markdown):
     while markdown.count("~~") >= 2:
         markdown = markdown.replace("~~", "<s>", 1)
         markdown = markdown.replace("~~", "</s>", 1)
+
+    # commonmark doesn't support latex blocks, so we need to handle it ourselves
+    def handle_latex(match):
+        return '<latex equation="{}">\u204d</latex>'.format(
+            html.escape(match.group(0)[2:-2])
+        )
+
+    markdown = re.sub(
+        r"(?<!\\\\|\$\$)(?:\\\\)*((\$\$)+)(?!(\$\$))(.+?)(?<!(\$\$))\1(?!(\$\$))",
+        handle_latex,
+        markdown,
+    )
 
     # we don't want to touch dashes, so temporarily replace them here
     markdown = markdown.replace("-", "⸻")
@@ -148,6 +168,12 @@ def markdown_to_notion(markdown):
                 format.remove(("s",))
                 literal = ""
 
+            if item["type"] == "html_inline" and literal == "</latex>":
+                for f in filter(lambda f: f[0] == "e", format):
+                    format.remove(f)
+                    break
+                literal = ""
+
             if item["type"] == "softbreak":
                 literal = "\n"
 
@@ -176,11 +202,18 @@ def markdown_to_notion(markdown):
         elif item[0]:
             consolidated.append(item)
 
-    # reinstate the regular dashes
-    for item in consolidated:
-        item[0] = item[0].replace("⸻", "-")
+    return cleanup_dashes(consolidated)
 
-    return consolidated
+
+def cleanup_dashes(thing):
+    regex_pattern = re.compile("⸻|%E2%B8%BB")
+    if type(thing) is list:
+        for counter, value in enumerate(thing):
+            thing[counter] = cleanup_dashes(value)
+    elif type(thing) is str:
+        return regex_pattern.sub("-", thing)
+
+    return thing
 
 
 def notion_to_markdown(notion):
@@ -222,7 +255,15 @@ def notion_to_markdown(notion):
             if f[0] == "a":
                 markdown += "["
 
-        markdown += stripped
+        # Check wheter a format modifies the content
+        content_changed = False
+        for f in sorted_format:
+            if f[0] == "e":
+                markdown += f[1]
+                content_changed = True
+
+        if not content_changed:
+            markdown += stripped
 
         for f in reversed(sorted_format):
             if f[0] in _NOTION_TO_MARKDOWN_MAPPER:
