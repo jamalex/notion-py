@@ -360,6 +360,7 @@ class CollectionQuery(object):
         sort=[],
         calendar_by="",
         group_by="",
+        limit=100
     ):
         assert not (
             aggregate and aggregations
@@ -374,6 +375,7 @@ class CollectionQuery(object):
         self.sort = _normalize_query_data(sort, collection)
         self.calendar_by = _normalize_property_name(calendar_by, collection)
         self.group_by = _normalize_property_name(group_by, collection)
+        self.limit = limit
         self._client = collection._client
 
     def execute(self):
@@ -393,6 +395,7 @@ class CollectionQuery(object):
                 sort=self.sort,
                 calendar_by=self.calendar_by,
                 group_by=self.group_by,
+                limit= self.limit
             ),
             self,
         )
