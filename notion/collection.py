@@ -382,20 +382,33 @@ class CollectionQuery(object):
 
         result_class = QUERY_RESULT_TYPES.get(self.type, QueryResult)
 
+        kwargs = {
+            'collection_id':self.collection.id,
+            'collection_view_id':self.collection_view.id,
+            'search':self.search,
+            'type':self.type,
+            'aggregate':self.aggregate,
+            'aggregations':self.aggregations,
+            'filter':self.filter,
+            'sort':self.sort,
+            'calendar_by':self.calendar_by,
+            'group_by':self.group_by,
+            'limit':0
+        }
+
+        if self.limit == -1:
+            # fetch remote total 
+            result = self._client.query_collection(
+                **kwargs
+            )
+            self.limit = result.get("total",-1)
+
+        kwargs['limit'] = self.limit
+
         return result_class(
             self.collection,
             self._client.query_collection(
-                collection_id=self.collection.id,
-                collection_view_id=self.collection_view.id,
-                search=self.search,
-                type=self.type,
-                aggregate=self.aggregate,
-                aggregations=self.aggregations,
-                filter=self.filter,
-                sort=self.sort,
-                calendar_by=self.calendar_by,
-                group_by=self.group_by,
-                limit= self.limit
+                **kwargs
             ),
             self,
         )
@@ -707,6 +720,7 @@ class QueryResult(object):
         self.collection = collection
         self._client = collection._client
         self._block_ids = self._get_block_ids(result)
+        self.total = result.get("total", -1)
         self.aggregates = result.get("aggregationResults", [])
         self.aggregate_ids = [
             agg.get("id") for agg in (query.aggregate or query.aggregations)
@@ -756,7 +770,6 @@ class QueryResult(object):
         else:
             return False
         return item_id in self._block_ids
-
 
 class TableQueryResult(QueryResult):
 
