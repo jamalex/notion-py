@@ -9,6 +9,7 @@ from urllib.parse import urljoin
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
 from getpass import getpass
+from ratelimit import limits, sleep_and_retry
 
 from .block import Block, BLOCK_TYPES
 from .collection import (
@@ -244,6 +245,9 @@ class NotionClient(object):
     def refresh_collection_rows(self, collection_id):
         row_ids = [row.id for row in self.get_collection(collection_id).get_rows()]
         self._store.set_collection_rows(collection_id, row_ids)
+
+    @sleep_and_retry
+    @limits(calls=1, period=1)
 
     def post(self, endpoint, data):
         """
