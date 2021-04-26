@@ -100,6 +100,20 @@ class NotionDate(object):
 
         return [["‣", [["d", data]]]]
 
+    def __repr__(self):
+        string = ""
+
+        start_date, start_time = self._format_datetime(self.start)
+        if start_date: string += start_date
+        if start_time: string += "T" + start_time
+
+        end_date, end_time = self._format_datetime(self.end)
+        if end_date: string += ";" + end_date
+        if end_time: string += "T" + end_time
+
+        # TODO if self.reminder:
+
+        return string
 
 class NotionSelect(object):
     valid_colors = [
