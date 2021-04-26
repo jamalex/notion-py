@@ -281,7 +281,7 @@ class CollectionView(Record):
         )
 
     def default_query(self):
-        return self.build_query(**self.get("query", {}))
+        return self.build_query(**self.get("query2", {}))
 
 
 class BoardView(CollectionView):
