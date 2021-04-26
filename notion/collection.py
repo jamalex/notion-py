@@ -271,6 +271,22 @@ class CollectionView(Record):
         assert self.get("parent_table", "block")
         return self._client.get_block(self.get("parent_id"))
 
+    @property
+    def columns(self):
+        columns = list()
+
+        for prop in self.get("format.table_properties"):
+            schema = self.collection.get_schema_property(prop["property"])
+            columns.append({
+                "name" : schema["name"],
+                "id" : schema["id"],
+                "width" : prop["width"],
+                "visible" : prop["visible"],
+                "type" : schema["type"]
+            })
+
+        return columns
+
     def __init__(self, *args, collection, **kwargs):
         self.collection = collection
         super().__init__(*args, **kwargs)
