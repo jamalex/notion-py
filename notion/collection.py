@@ -491,6 +491,8 @@ class CollectionRowBlock(PageBlock):
         if prop["type"] in ["number"]:
             if val is not None:
                 val = val[0][0]
+                if "%" in val:
+                    val = val.replace("%", "")
                 if "." in val:
                     val = float(val)
                 else:

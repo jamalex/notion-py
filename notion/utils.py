@@ -12,7 +12,6 @@ from .settings import BASE_URL, SIGNED_URL_PREFIX, S3_URL_PREFIX, S3_URL_PREFIX_
 class InvalidNotionIdentifier(Exception):
     pass
 
-
 def now():
     return int(datetime.now().timestamp() * 1000)
 
