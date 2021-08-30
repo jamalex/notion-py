@@ -5,6 +5,9 @@ import requests
 import time
 import uuid
 
+from urllib.parse import urlencode, urlparse, quote
+from urllib.request import quote
+
 from cached_property import cached_property
 from copy import deepcopy
 
@@ -633,6 +636,35 @@ class EmbedOrUploadBlock(EmbedBlock):
 
     file_id = field_map(["file_ids", 0])
 
+    def download_file(self, path):
+        from urllib.request import quote as quote_1
+        # "oneliner" helper to safely unwrap lists, see: https://bit.ly/35SUfMK
+        unwrap = lambda x: unwrap(next(iter(x), None)) \
+            if '__iter__' in dir(x) and not isinstance(x, str) else x
+
+        record_data = self._get_record_data()
+        sources = record_data.get("properties", {}).get("source", [])
+        s3_url = unwrap(sources)
+        filename = s3_url.split("/")[-1]
+
+        params = dict(
+            table="block",
+            id=self.id,
+            name=filename,
+            download="true",
+            userId=self._client.current_user.id,
+            cache="v2",
+        )
+
+        url = f"{BASE_URL}signed/" + quote_1(s3_url, safe="")
+
+        # piggyback off of client's session to proper token is included
+        resp = self._client.session.get(url, params=params, stream=True)
+
+        with open(path, "wb") as fp:
+            for chunk in resp.iter_content(chunk_size=1024):
+                fp.write(chunk)
+
     def upload_file(self, path):
 
         mimetype = mimetypes.guess_type(path)[0] or "text/plain"
@@ -654,9 +686,89 @@ class EmbedOrUploadBlock(EmbedBlock):
         self.file_id = data["url"][len(S3_URL_PREFIX) :].split("/")[0]
 
 
+class UploadBlock(EmbedBlock):
+    """
+    Upload Block.
+    """
+    file_id = field_map("file_ids.0")
+    def upload_file(self, path: str):
+        """
+        Upload a file and embed it in Notion.
+        Arguments
+        ---------
+        path : str
+            Valid path to a file.
+        Raises
+        ------
+        HTTPError
+            On API error.
+        """
+        content_type = guess_type(path)[0] or "text/plain"
+        file_name = os.path.split(path)[-1]
+        data = {"bucket": "secure", "name": file_name, "contentType": content_type}
+        resp = self._client.post("getUploadFileUrl", data)
+        resp.raise_for_status()
+        resp_data = resp.json()
+        url = resp_data["url"]
+        signed_url = resp_data["signedPutUrl"]
+        with open(path, mode="rb") as f:
+            headers = {"Content-Type": content_type}
+            resp = self._client.put(signed_url, data=f, headers=headers)
+            resp.raise_for_status()
+        query = urlencode(
+            {
+                "cache": "v2",
+                "name": file_name,
+                "id": self._id,
+                "table": self._table,
+                "userId": self._client.current_user.id,
+            }
+        )
+        query_url = f"{url}?{query}"
+        self.source = query_url
+        self.display_source = query_url
+        self.file_id = urlparse(url).path.split("/")[2]
+
+    def download_file(self, path: str):
+        """
+        Download a file.
+        Arguments
+        ---------
+        path : str
+            Path for saving file.
+        Raises
+        ------
+        HTTPError
+            On API error.
+        """
+
+        record_data = self._get_record_data()
+        source = record_data["properties"]["source"]
+        s3_url = from_list(source)
+        file_name = s3_url.split("/")[-1]
+
+        params = {
+            "cache": "v2",
+            "name": file_name,
+            "id": self._id,
+            "table": self._table,
+            "userId": self._client.current_user.id,
+            "download": True,
+        }
+
+        url = SIGNED_URL_PREFIX + quote(s3_url, safe="")
+        resp = self._client.session.get(url, params=params, stream=True)
+        resp.raise_for_status()
+
+        with open(path, "wb") as f:
+            for chunk in resp.iter_content(chunk_size=4096):
+                f.write(chunk)
+
+
 class VideoBlock(EmbedOrUploadBlock):
 
     _type = "video"
+
 
 
 class FileBlock(EmbedOrUploadBlock):
