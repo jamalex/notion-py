@@ -269,23 +269,31 @@ class RecordStore(object):
         else:
             return -1
 
-    def call_load_page_chunk(self, page_id):
+    def call_load_page_chunk(self, page_id, limit=100):
 
         if self._client.in_transaction():
             self._pages_to_refresh.append(page_id)
             return
 
-        data = {
-            "pageId": page_id,
-            "limit": 100000,
-            "cursor": {"stack": []},
-            "chunkNumber": 0,
-            "verticalColumns": False,
-        }
+        cursor = {"stack": []}
+        chunk_number = 0
+        while True:
+            data = {
+                "pageId": page_id,
+                "limit": limit,
+                "cursor": cursor,
+                "chunkNumber": chunk_number,
+                "verticalColumns": False,
+            }
+            chunk_number += 1
 
-        recordmap = self._client.post("loadPageChunk", data).json()["recordMap"]
+            result = self._client.post("loadPageChunk", data).json()
+            recordmap = result["recordMap"]
 
-        self.store_recordmap(recordmap)
+            self.store_recordmap(recordmap)
+            cursor = result['cursor']
+            if len(cursor['stack']) <= 0:
+                break
 
     def store_recordmap(self, recordmap):
         for table, records in recordmap.items():
