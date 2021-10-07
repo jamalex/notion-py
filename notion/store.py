@@ -324,21 +324,26 @@ class RecordStore(object):
             sort = [sort]
 
         data = {
-            "collectionId": collection_id,
-            "collectionViewId": collection_view_id,
-            "loader": {
-                "limit": limit,
-                "loadContentCover": True,
-                "searchQuery": search,
-                "userLocale": "en",
-                "userTimeZone": str(get_localzone()),
-                "type": type,
+            "collection": {
+                "id": collection_id,
+                "spaceId": self._client.current_space.id
             },
-            "query": {
-                "aggregate": aggregate,
-                "aggregations": aggregations,
-                "filter": filter,
-                "sort": sort,
+            "collectionView": {
+                "id": collection_view_id,
+                "spaceId": self._client.current_space.id
+            },
+            "loader": {
+                'filter': filter,
+                'reducers': {
+                    'collection_group_results': {
+                        'limit': limit,
+                        'type': 'results',
+                    },
+                },
+                "searchQuery": search,
+                'sort': sort,
+                "userTimeZone": str(get_localzone()),
+                "type": 'reducer',
             },
         }
 

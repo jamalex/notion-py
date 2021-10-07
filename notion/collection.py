@@ -728,7 +728,7 @@ class QueryResult(object):
         self.query = query
 
     def _get_block_ids(self, result):
-        return result["blockIds"]
+        return result['reducerResults']['collection_group_results']["blockIds"]
 
     def _get_block(self, id):
         block = CollectionRowBlock(self._client, id)
