@@ -284,7 +284,7 @@ class RecordStore(object):
         }
 
         recordmap = self._client.post("loadPageChunk", data).json()["recordMap"]
-
+        
         self.store_recordmap(recordmap)
 
     def store_recordmap(self, recordmap):
@@ -303,7 +303,7 @@ class RecordStore(object):
         collection_id,
         collection_view_id,
         search="",
-        type="table",
+        type="results",
         aggregate=[],
         aggregations=[],
         filter={},
@@ -327,23 +327,28 @@ class RecordStore(object):
             "collectionId": collection_id,
             "collectionViewId": collection_view_id,
             "loader": {
-                "limit": limit,
+                "reducers": {
+                    "collection_group_results":{
+                        "limit": limit,
+                        "type": type,
+                    }
+                },
                 "loadContentCover": True,
+                "type": "reducer",
                 "searchQuery": search,
                 "userLocale": "en",
                 "userTimeZone": str(get_localzone()),
-                "type": type,
-            },
-            "query": {
-                "aggregate": aggregate,
-                "aggregations": aggregations,
                 "filter": filter,
-                "sort": sort,
+                "sort": sort
             },
         }
 
+        if aggregate is not None:
+            for entry in aggregate:
+                data["loader"]["reducers"][entry["key"]] = entry
+                
         response = self._client.post("queryCollection", data).json()
-
+        
         self.store_recordmap(response["recordMap"])
 
         return response["result"]

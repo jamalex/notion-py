@@ -1,3 +1,4 @@
+from requests.packages.urllib3.util.retry import log
 from cached_property import cached_property
 from copy import deepcopy
 from datetime import datetime, date
@@ -353,7 +354,7 @@ class CollectionQuery(object):
         collection,
         collection_view,
         search="",
-        type="table",
+        type="results",
         aggregate=[],
         aggregations=[],
         filter=[],
@@ -387,7 +388,7 @@ class CollectionQuery(object):
             'collection_view_id':self.collection_view.id,
             'search':self.search,
             'type':self.type,
-            'aggregate':self.aggregate,
+            'aggregate':[],
             'aggregations':self.aggregations,
             'filter':self.filter,
             'sort':self.sort,
@@ -396,12 +397,21 @@ class CollectionQuery(object):
             'limit':0
         }
 
+        if self.aggregate is not None:
+            for entry in self.aggregate:
+                key = "table:uncategorized:"+ entry["property"] +":"+ entry["aggregator"]
+                kwargs["aggregate"].append({
+                    "aggregation" : entry,
+                    "type" : "aggregation",
+                    "key" : key
+                })
+
         if self.limit == -1:
             # fetch remote total 
             result = self._client.query_collection(
                 **kwargs
             )
-            self.limit = result.get("total",-1)
+            self.limit = result['reducerResults']['collection_group_results']['total']
 
         kwargs['limit'] = self.limit
 
@@ -721,14 +731,15 @@ class QueryResult(object):
         self._client = collection._client
         self._block_ids = self._get_block_ids(result)
         self.total = result.get("total", -1)
-        self.aggregates = result.get("aggregationResults", [])
+        self.aggregates = result.get("reducerResults", [])
+        del self.aggregates['collection_group_results']
         self.aggregate_ids = [
             agg.get("id") for agg in (query.aggregate or query.aggregations)
         ]
         self.query = query
 
     def _get_block_ids(self, result):
-        return result["blockIds"]
+        return result["reducerResults"]["collection_group_results"]["blockIds"]
 
     def _get_block(self, id):
         block = CollectionRowBlock(self._client, id)
@@ -736,10 +747,19 @@ class QueryResult(object):
         return block
 
     def get_aggregate(self, id):
-        for agg_id, agg in zip(self.aggregate_ids, self.aggregates):
-            if id == agg_id:
-                return agg["value"]
-        return None
+        # for agg_id, agg in zip(self.aggregate_ids, self.aggregates):
+        #     if id in agg_id:
+        #         return agg["value"]
+        return "API Changed, unable to fix, use get_aggregate() instead"
+
+    def get_aggregates(self):
+        keys = self.aggregates.keys()
+        values = [i["aggregationResult"] for i in self.aggregates.values()]
+        data = []
+        for idx, item in enumerate(keys):
+            values[idx]["key"] = item
+            data.append(values)
+        return values
 
     def __repr__(self):
         if not len(self):
