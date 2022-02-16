@@ -174,14 +174,14 @@ class RecordStore(object):
         self.get(table, id, force_refresh=force_refresh)
         return self._role[table].get(id, None)
 
-    def get(self, table, id, force_refresh=False):
+    def get(self, table, id, force_refresh=False, limit=100):
         id = extract_id(id)
         # look up the record in the current local dataset
         result = self._get(table, id)
         # if it's not found, try refreshing the record from the server
         if result is Missing or force_refresh:
             if table == "block":
-                self.call_load_page_chunk(id)
+                self.call_load_page_chunk(id,limit=limit)
             else:
                 self.call_get_record_values(**{table: id})
             result = self._get(table, id)
@@ -269,7 +269,7 @@ class RecordStore(object):
         else:
             return -1
 
-    def call_load_page_chunk(self, page_id):
+    def call_load_page_chunk(self, page_id, limit=100):
 
         if self._client.in_transaction():
             self._pages_to_refresh.append(page_id)
@@ -277,7 +277,7 @@ class RecordStore(object):
 
         data = {
             "pageId": page_id,
-            "limit": 100000,
+            "limit": limit,
             "cursor": {"stack": []},
             "chunkNumber": 0,
             "verticalColumns": False,
@@ -310,6 +310,7 @@ class RecordStore(object):
         sort=[],
         calendar_by="",
         group_by="",
+        limit=50
     ):
 
         assert not (
@@ -323,21 +324,25 @@ class RecordStore(object):
             sort = [sort]
 
         data = {
-            "collectionId": collection_id,
-            "collectionViewId": collection_view_id,
-            "loader": {
-                "limit": 10000,
-                "loadContentCover": True,
-                "searchQuery": search,
-                "userLocale": "en",
-                "userTimeZone": str(get_localzone()),
-                "type": type,
+            "collection": {
+                "id": collection_id,
+                "spaceId": self._client.current_space.id
             },
-            "query": {
-                "aggregate": aggregate,
-                "aggregations": aggregations,
-                "filter": filter,
-                "sort": sort,
+            "collectionView": {
+                "id": collection_view_id,
+                "spaceId": self._client.current_space.id
+            },
+            "loader": {
+                'reducers': {
+                    'collection_group_results': {
+                        'limit': limit,
+                        'type': 'results',
+                    },
+                },
+                "searchQuery": search,
+                'sort': sort,
+                "userTimeZone": str(get_localzone()),
+                "type": 'reducer',
             },
         }
 
