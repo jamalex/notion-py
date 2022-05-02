@@ -894,10 +894,11 @@ class TableBlock(BasicBlock):
 
     def add_row(self, row):
         row_block = self.children.add_new(TableRowBlock)
-        for col_id, cell in zip(self._columns, row):
-            attr = property_map(f"{col_id}")
-            attr.fset(row_block, str(cell))
-        return row_block
+        with self._client.as_atomic_transaction():
+            for col_id, cell in zip(self._columns, row):
+                attr = property_map(f"{col_id}")
+                attr.fset(row_block, str(cell))
+            return row_block
 
 
 BLOCK_TYPES = {
