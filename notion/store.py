@@ -276,7 +276,9 @@ class RecordStore(object):
             return
 
         data = {
-            "pageId": page_id,
+            "page": {
+                "id": page_id,
+            },
             "limit": limit,
             "cursor": {"stack": []},
             "chunkNumber": 0,
