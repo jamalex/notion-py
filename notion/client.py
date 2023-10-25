@@ -158,15 +158,15 @@ class NotionClient(object):
         records = self._update_user_info()
         return [self.get_block(bid) for bid in records["block"].keys()]
 
-    def get_record_data(self, table, id, force_refresh=False):
-        return self._store.get(table, id, force_refresh=force_refresh)
+    def get_record_data(self, table, id, force_refresh=False, limit=100):
+        return self._store.get(table, id, force_refresh=force_refresh, limit=limit)
 
-    def get_block(self, url_or_id, force_refresh=False):
+    def get_block(self, url_or_id, force_refresh=False, limit=100):
         """
         Retrieve an instance of a subclass of Block that maps to the block/page identified by the URL or ID passed in.
         """
         block_id = extract_id(url_or_id)
-        block = self.get_record_data("block", block_id, force_refresh=force_refresh)
+        block = self.get_record_data("block", block_id, force_refresh=force_refresh, limit=limit)
         if not block:
             return None
         if block.get("parent_table") == "collection":
@@ -306,11 +306,11 @@ class NotionClient(object):
         """
         return hasattr(self, "_transaction_operations")
 
-    def search_pages_with_parent(self, parent_id, search=""):
+    def search_pages_with_parent(self, parent_id, search="", limit=100):
         data = {
             "query": search,
             "parentId": parent_id,
-            "limit": 10000,
+            "limit": limit,
             "spaceId": self.current_space.id,
         }
         response = self.post("searchPagesWithParent", data).json()
