@@ -588,7 +588,7 @@ class EquationBlock(BasicBlock):
     latex = field_map(
         ["properties", "title"],
         python_to_api=lambda x: [[x]],
-        api_to_python=lambda x: x[0][0],
+        api_to_python=lambda x: x[0][0] if x else "",
     )
 
     _type = "equation"
