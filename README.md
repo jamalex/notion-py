@@ -167,7 +167,7 @@ for row in result:
     print(row)
 
 # Run an "aggregation" query
-aggregations = [{
+aggregate_params = [{
     "property": "estimated_value",
     "aggregator": "sum",
     "id": "total_value",
