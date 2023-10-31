@@ -197,14 +197,40 @@ class Collection(Record):
                 return prop
         return None
 
-    def add_row(self, update_views=True, **kwargs):
+    def add_row(self, update_views=True, source_block=None, **kwargs):
         """
         Create a new empty CollectionRowBlock under this collection, and return the instance.
+        Specify 'source_block' to create a row from a template block.
         """
 
         row_id = self._client.create_record("block", self, type="page")
         row = CollectionRowBlock(self._client, row_id)
 
+        # User wants to create a row from a template
+        if source_block:
+            # The source block can be either an ID or a URL
+            source_block = self._client.get_block(source_block)
+            # Start a duplication task
+            data = self._client.post(
+                "enqueueTask",
+                {
+                    "task": {
+                        "eventName": "duplicateBlock",
+                        "request": {
+                            "sourceBlockId": source_block.id,
+                            "targetBlockId": row_id,
+                            "appendContentOnly": True
+                        }
+                    }
+                },
+            ).json()
+
+            task_id = data.get("taskId")
+
+            if task_id:
+                # Wait until the duplication task finishes
+                self._client.wait_for_task(task_id)
+            
         with self._client.as_atomic_transaction():
             for key, val in kwargs.items():
                 setattr(row, key, val)
