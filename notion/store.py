@@ -302,6 +302,7 @@ class RecordStore(object):
         self,
         collection_id,
         collection_view_id,
+        space_id,
         search="",
         type="table",
         aggregate=[],
@@ -326,12 +327,7 @@ class RecordStore(object):
         data = {
             "collectionView": {
                 "id": collection_view_id,
-                "spaceId": self._client.current_space.id
-            },
-            "source": {
-                "type": "collection",
-                "id": collection_id,
-                "spaceId": self._client.current_space.id
+                "spaceId": space_id
             },
             "loader": {
                 "reducers": {
@@ -345,6 +341,11 @@ class RecordStore(object):
                 "userId": self._client.current_user.id,
                 "userTimeZone": str(get_localzone()),
             },
+            "source": {
+                "id": collection_id,
+                "spaceId": space_id,
+                "type": "collection"
+            }
         }
 
         if filter:
