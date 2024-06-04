@@ -302,6 +302,7 @@ class RecordStore(object):
         self,
         collection_id,
         collection_view_id,
+        space_id,
         search="",
         type="table",
         aggregate=[],
@@ -326,11 +327,11 @@ class RecordStore(object):
         data = {
             "collection": {
                 "id": collection_id,
-                "spaceId": self._client.current_space.id
+                "spaceId": space_id
             },
             "collectionView": {
                 "id": collection_view_id,
-                "spaceId": self._client.current_space.id
+                "spaceId": space_id
             },
             "loader": {
                 'reducers': {
@@ -344,6 +345,11 @@ class RecordStore(object):
                 "userTimeZone": str(get_localzone()),
                 "type": 'reducer',
             },
+            "source": {
+                "id": collection_id,
+                "spaceId": space_id,
+                "type": "collection"
+            }
         }
 
         response = self._client.post("queryCollection", data).json()

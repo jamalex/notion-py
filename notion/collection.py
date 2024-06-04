@@ -233,7 +233,9 @@ class Collection(Record):
         return parent.views[0]
 
     def query(self, **kwargs):
-        return CollectionQuery(self, self._get_a_collection_view(), **kwargs).execute()
+        return CollectionQuery(
+            self, self._get_a_collection_view(), space_id=self.get("space_id"), **kwargs
+        ).execute()
 
     def get_rows(self, **kwargs):
         return self.query(**kwargs)
@@ -277,7 +279,10 @@ class CollectionView(Record):
 
     def build_query(self, **kwargs):
         return CollectionQuery(
-            collection=self.collection, collection_view=self, **kwargs
+            collection=self.collection,
+            collection_view=self,
+            space_id=self.get('space_id'),
+            **kwargs
         )
 
     def default_query(self):
@@ -352,6 +357,7 @@ class CollectionQuery(object):
         self,
         collection,
         collection_view,
+        space_id,
         search="",
         type="table",
         aggregate=[],
@@ -367,6 +373,7 @@ class CollectionQuery(object):
         ), "Use only one of `aggregate` or `aggregations` (old vs new format)"
         self.collection = collection
         self.collection_view = collection_view
+        self.space_id = space_id
         self.search = search
         self.type = type
         self.aggregate = _normalize_query_data(aggregate, collection)
@@ -385,6 +392,7 @@ class CollectionQuery(object):
         kwargs = {
             'collection_id':self.collection.id,
             'collection_view_id':self.collection_view.id,
+            'space_id':self.space_id,
             'search':self.search,
             'type':self.type,
             'aggregate':self.aggregate,
@@ -397,7 +405,7 @@ class CollectionQuery(object):
         }
 
         if self.limit == -1:
-            # fetch remote total 
+            # fetch remote total
             result = self._client.query_collection(
                 **kwargs
             )
