@@ -922,6 +922,30 @@ class CalloutBlock(BasicBlock):
     _type = "callout"
 
 
+class TableRowBlock(BasicBlock):
+    _type = "table_row"
+
+
+class TableBlock(BasicBlock):
+    _type = "table"
+
+    table_block_column_order = field_map(
+        "format.table_block_column_order",
+    )
+
+    def set_columns(self, num_columns):
+        self._columns = [f"{i:04d}" for i in range(num_columns)]
+        self.table_block_column_order = self._columns
+
+    def add_row(self, row):
+        row_block = self.children.add_new(TableRowBlock)
+        with self._client.as_atomic_transaction():
+            for col_id, cell in zip(self._columns, row):
+                attr = property_map(f"{col_id}")
+                attr.fset(row_block, str(cell))
+            return row_block
+
+
 BLOCK_TYPES = {
     cls._type: cls
     for cls in locals().values()

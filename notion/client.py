@@ -1,5 +1,4 @@
 import hashlib
-import json
 import re
 import uuid
 
@@ -53,6 +52,7 @@ def create_session(client_specified_retry=None):
         )
     adapter = HTTPAdapter(max_retries=retry)
     session.mount("https://", adapter)
+    session.headers.update({"content-type": "application/json"})
     return session
 
 
@@ -130,6 +130,10 @@ class NotionClient(object):
         self._store.store_recordmap(records)
         self.current_user = self.get_user(list(records["notion_user"].keys())[0])
         self.current_space = self.get_space(list(records["space"].keys())[0])
+
+        self.session.headers.update({"x-notion-active-user-header": 
+            self.session.cookies.get("notion_user_id")})
+        
         return records
 
     def get_email_uid(self):
@@ -140,7 +144,6 @@ class NotionClient(object):
         }
 
     def set_user_by_uid(self, user_id):
-        self.session.headers.update({"x-notion-active-user-header": user_id})
         self._update_user_info()
 
     def set_user_by_email(self, email):
