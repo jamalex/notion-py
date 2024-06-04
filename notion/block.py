@@ -685,19 +685,27 @@ class EmbedOrUploadBlock(EmbedBlock):
 
         data = self._client.post(
             "getUploadFileUrl",
-            {"bucket": "secure", "name": filename, "contentType": mimetype},
+            {
+                "bucket": "secure",
+                "name": filename,
+                "contentType": mimetype,
+                "record": {
+                    "table": "block",
+                    "id": self.id,
+                    "spaceId": self.space_info["spaceId"],
+                },
+            },
         ).json()
 
         with open(path, "rb") as f:
-            response = requests.put(
-                data["signedPutUrl"], data=f, headers={"Content-type": mimetype}
-            )
+            response = requests.put(data["signedPutUrl"], data=f, headers={"Content-type": mimetype})
             response.raise_for_status()
 
         self.display_source = data["url"]
         self.source = data["url"]
-        self.file_id = data["url"][len(S3_URL_PREFIX) :].split("/")[0]
+        self.file_id = data["url"][len(S3_URL_PREFIX) :].split("/")[1]
 
+        return data
 
 class VideoBlock(EmbedOrUploadBlock):
 
@@ -759,7 +767,7 @@ class CollectionViewBlock(MediaBlock):
 
     @property
     def collection(self):
-        collection_id = self.get("collection_id")
+        collection_id = self.get("format.collection_pointer.id")
         if not collection_id:
             return None
         if not hasattr(self, "_collection"):
@@ -770,7 +778,7 @@ class CollectionViewBlock(MediaBlock):
     def collection(self, val):
         if hasattr(self, "_collection"):
             del self._collection
-        self.set("collection_id", val.id)
+        self.set("format.collection_pointer.id", val.id)
 
     @property
     def views(self):
