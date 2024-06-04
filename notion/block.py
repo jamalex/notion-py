@@ -685,7 +685,16 @@ class EmbedOrUploadBlock(EmbedBlock):
 
         data = self._client.post(
             "getUploadFileUrl",
-            {"bucket": "secure", "name": filename, "contentType": mimetype},
+            {
+                "bucket": "secure",
+                "name": filename,
+                "contentType": mimetype,
+                "record": {
+                    "table": "block",
+                    "id": self.id,
+                    "spaceId": self.space_info['spaceId'],
+                }
+            },
         ).json()
 
         with open(path, "rb") as f:
@@ -696,7 +705,6 @@ class EmbedOrUploadBlock(EmbedBlock):
 
         self.display_source = data["url"]
         self.source = data["url"]
-        self.file_id = data["url"][len(S3_URL_PREFIX) :].split("/")[0]
 
 
 class VideoBlock(EmbedOrUploadBlock):
