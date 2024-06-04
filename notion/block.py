@@ -1,9 +1,11 @@
+import io
 import mimetypes
 import os
 import random
 import requests
 import time
 import uuid
+import zipfile
 
 from cached_property import cached_property
 from copy import deepcopy
@@ -424,6 +426,49 @@ class Block(Record):
                 target_block.get("parent_id"),
             ]
         )
+
+    def extract_markdown(self):
+        task_id = self._client.post("https://www.notion.so/api/v3/enqueueTask", {
+            "task": {
+                "eventName": "exportBlock",
+                "request": {
+                    "block": {
+                        "id": self.id,
+                        "spaceId": self._client.current_space.id,
+                    },
+                    "recursive": False,
+                    "exportOptions": {
+                        "exportType": "markdown",
+                        "timeZone": "America/Los_Angeles",
+                        "locale": "en",
+                        "collectionViewExportType": "currentView",
+                        "includeContents": "no_files",
+                        "preferredViewMap": {}
+                    },
+                    "shouldExportComments": False
+                }
+            }
+        }).json()["taskId"]
+
+        for i in range(5000):
+            response = self._client.post("https://www.notion.so/api/v3/getTasks", {
+                "taskIds": [task_id]
+            }).json()
+            if response["results"][0]["state"] == "success":
+                break
+            time.sleep(0.25)
+
+        zip_url = response["results"][0]["status"]["exportURL"]
+
+        response = self._client.session.get(zip_url)
+        response.raise_for_status()
+
+        # unzip the contents in memory and read the contents of the file inside (there should only be one file, but check the name)
+        with zipfile.ZipFile(io.BytesIO(response.content)) as z:
+            names = z.namelist()
+            assert len(names) == 1, "Expected exactly one file in the zip"
+            with z.open(names[0]) as f:
+                return f.read().decode("utf-8")
 
 
 class DividerBlock(Block):
