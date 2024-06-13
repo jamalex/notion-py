@@ -9,6 +9,7 @@ import zipfile
 
 from cached_property import cached_property
 from copy import deepcopy
+from urllib.request import quote
 
 from .logger import logger
 from .maps import property_map, field_map, mapper
@@ -697,6 +698,35 @@ class EmbedOrUploadBlock(EmbedBlock):
         self.display_source = data["url"]
         self.source = data["url"]
         self.file_id = data["url"][len(S3_URL_PREFIX) :].split("/")[0]
+
+    def download_file(self, path):
+
+        # "oneliner" helper to safely unwrap lists, see: https://bit.ly/35SUfMK
+        unwrap = lambda x: unwrap(next(iter(x), None)) \
+                if '__iter__' in dir(x) and not isinstance(x, str) else x
+
+        record_data = self._get_record_data()
+        sources = record_data.get("properties", {}).get("source", [])
+        s3_url = unwrap(sources)
+        filename = s3_url.split("/")[-1]
+
+        params = dict(
+            table="block",
+            id=self.id,
+            name=filename,
+            download="true",
+            userId=self._client.current_user.id,
+            cache="v2",
+        )
+
+        url = f"{BASE_URL}signed/" + quote(s3_url, safe="")
+
+        # piggyback off of client's session to proper token is included
+        resp = self._client.session.get(url, params=params, stream=True)
+
+        with open(path, "wb") as fp:
+            for chunk in resp.iter_content(chunk_size=1024):
+                fp.write(chunk)
 
 
 class VideoBlock(EmbedOrUploadBlock):
