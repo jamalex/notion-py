@@ -200,6 +200,20 @@ def run_live_smoke_test(token_v2, parent_page_url_or_id):
     assert row1.some_date.timezone == timezone
     assert row1.some_date.reminder == reminder
 
+    # Test update schema with new props
+    for type_ in ["number", "select", "multi_select", "date", "person", "file", "checkbox", "url", "email",
+                  "phone_number", "created_time", "created_by", "last_edited_time", "last_edited_by", "formula",
+                  "rollup", "text",
+                  # "relation"  # another contract for this type, requires another db at creation time
+                  ]:
+        cvb.collection.update_schema_properties({
+            type_: dict(
+                name=type_,
+                type=type_
+            )
+        })
+        assert cvb.collection.get_schema_property(type_)
+
     print(
         "Check it out and make sure it looks good, then press any key here to delete it..."
     )
