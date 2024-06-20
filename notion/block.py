@@ -498,6 +498,10 @@ class ColumnBlock(Block):
 
     _type = "column"
 
+class TableOfContentsBlock(Block):
+
+    _type = "table_of_contents"
+
 
 class BasicBlock(Block):
 
@@ -522,6 +526,27 @@ class BasicBlock(Block):
 
     def _str_fields(self):
         return super()._str_fields() + ["title"]
+        
+    title_list = field_map(
+        ["properties", "title"],
+        python_to_api=lambda x: [[x]],
+        api_to_python=lambda x: x,
+    )
+
+    def _get_title(self):
+        text=""
+        for list in self.title_list:
+            if list[0] == "⁍":
+                    text+=list[1][0][1]
+            else:
+                text+=list[0]
+        return text
+    @property
+    def title(self):
+        try:
+            return self._get_title()
+        except:
+            pass
 
 
 class TodoBlock(BasicBlock):
