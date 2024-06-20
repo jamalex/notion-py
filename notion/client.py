@@ -9,6 +9,7 @@ from urllib.parse import urljoin
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
 from getpass import getpass
+from time import sleep
 
 from .block import Block, BLOCK_TYPES
 from .collection import (
@@ -402,7 +403,46 @@ class NotionClient(object):
                 )
 
         return record_id
+    
+    def get_task_status(self, task_id):
+        """
+        Get a status of a single task
+        """
+        data = self.post(
+            "getTasks",
+            {
+                "taskIds": [task_id]
+            }
+        ).json()
 
+        results = data.get("results")
+        if results is None:
+            return None
+        
+        if not results:
+            # Notion does not know about such a task
+            print("Invalid task ID.")
+            return None
+
+        if len(results) == 1:
+            state = results[0].get("state")
+            return state
+        
+        return None
+        
+    def wait_for_task(self, task_id, interval=1, tries=10):
+        """
+        Wait for a task by looping 'tries' times ever 'interval' seconds.
+        The 'interval' parameter can be used to specify milliseconds using double (e.g 0.75).
+        """
+        for i in range(tries):
+            state = self.get_task_status(task_id)
+            if state in ["not_started", "in_progress"]:
+                sleep(interval)
+            elif state == "success":
+                return state
+        
+        print("Task takes more time than expected. Specify 'interval' or 'tries' to wait more.")
 
 class Transaction(object):
 
