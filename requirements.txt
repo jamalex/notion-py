@@ -5,3 +5,4 @@ tzlocal
 python-slugify
 dictdiffer
 cached-property
+markdown2
