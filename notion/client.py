@@ -121,10 +121,29 @@ class NotionClient(object):
             password = getpass("Enter your Notion password:\n")
         self.post("loginWithEmail", {"email": email, "password": password}).json()
 
+    @staticmethod
+    def _unwrap_record_value(record):
+        """
+        Notion's API now nests record data as ``{"value": {"value": {...}, "role": "..."}}``.
+        Older responses used ``{"value": {...}, "role": "..."}``.  Return the inner data dict
+        regardless of which format is encountered.
+        """
+        value = record.get("value", {})
+        if isinstance(value, dict) and "value" in value and isinstance(value["value"], dict):
+            value = value["value"]
+        return value
+
     def _update_user_info(self):
         records = self.post("loadUserContent", {}).json()["recordMap"]
         user_id = list(records["notion_user"].keys())[0]
-        space_id = records["user_root"][user_id]["value"]["space_view_pointers"][0]["spaceId"] if user_id in records.get("user_root", {}) else None
+
+        space_id = None
+        if user_id in records.get("user_root", {}):
+            user_root_val = self._unwrap_record_value(records["user_root"][user_id])
+            space_view_pointers = user_root_val.get("space_view_pointers", [])
+            if space_view_pointers:
+                space_id = space_view_pointers[0].get("spaceId")
+
         self._fetch_space_data(records, space_id)
 
         self._store.store_recordmap(records)
