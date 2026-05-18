@@ -124,7 +124,15 @@ class NotionClient(object):
     def _update_user_info(self):
         records = self.post("loadUserContent", {}).json()["recordMap"]
         user_id = list(records["notion_user"].keys())[0]
-        space_id = records["user_root"][user_id]["value"]["space_view_pointers"][0]["spaceId"] if user_id in records.get("user_root", {}) else None
+        # Handle both old {"value": {...data}} and new {"value": {"value": {...data}, "role": "..."}} formats
+        space_id = None
+        if user_id in records.get("user_root", {}):
+            user_root_val = records["user_root"][user_id].get("value", {})
+            if isinstance(user_root_val, dict) and "value" in user_root_val and isinstance(user_root_val["value"], dict):
+                user_root_val = user_root_val["value"]
+            space_view_pointers = user_root_val.get("space_view_pointers", [])
+            if space_view_pointers:
+                space_id = space_view_pointers[0].get("spaceId")
         self._fetch_space_data(records, space_id)
 
         self._store.store_recordmap(records)
