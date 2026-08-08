@@ -274,7 +274,8 @@ class RecordStore(object):
 
         data = {
             "pageId": page_id,
-            "limit": limit,
+            # Notion rejects loadPageChunk requests with a limit above 100.
+            "limit": min(limit, 100),
             "cursor": {"stack": []},
             "chunkNumber": 0,
             "verticalColumns": False,
